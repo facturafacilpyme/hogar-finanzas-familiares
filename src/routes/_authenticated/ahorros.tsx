@@ -51,8 +51,7 @@ function Ahorros() {
                   const { error } = await supabase.from("savings_goals").insert({
                     name: String(fd.get("name")),
                     target_amount: Number(fd.get("target_amount")),
-                    target_date: String(fd.get("target_date") || "") || null,
-                    description: String(fd.get("description") || "") || null,
+                    due_date: String(fd.get("due_date") || "") || null,
                     created_by: user!.id,
                   });
                   if (error) return toast.error(error.message);
@@ -64,8 +63,7 @@ function Ahorros() {
               >
                 <div><Label>Nombre</Label><Input name="name" required placeholder="Vacaciones, Emergencia…" /></div>
                 <div><Label>Meta ($)</Label><Input name="target_amount" type="number" step="0.01" required /></div>
-                <div><Label>Fecha objetivo</Label><Input name="target_date" type="date" /></div>
-                <div><Label>Descripción</Label><Input name="description" /></div>
+                <div><Label>Fecha objetivo</Label><Input name="due_date" type="date" /></div>
                 <DialogFooter><Button type="submit">Crear</Button></DialogFooter>
               </form>
             </DialogContent>
@@ -88,9 +86,8 @@ function Ahorros() {
                       {done ? <Trophy className="h-5 w-5 text-warning" /> : <PiggyBank className="h-5 w-5 text-primary" />}
                       <h3 className="font-semibold">{g.name}</h3>
                     </div>
-                    {g.target_date && <span className="text-xs text-muted-foreground">{formatDate(g.target_date)}</span>}
+                    {g.due_date && <span className="text-xs text-muted-foreground">{formatDate(g.due_date)}</span>}
                   </div>
-                  {g.description && <p className="mt-1 text-sm text-muted-foreground">{g.description}</p>}
                   <div className="mt-4">
                     <div className="flex justify-between text-sm">
                       <span className="font-bold text-primary">{formatCOP(g.current_amount)}</span>
@@ -115,7 +112,6 @@ function Ahorros() {
                               user_id: user!.id,
                               amount: Number(fd.get("amount")),
                               contribution_date: String(fd.get("contribution_date")),
-                              notes: String(fd.get("notes") || "") || null,
                             });
                             if (error) return toast.error(error.message);
                             toast.success("Aporte registrado");
@@ -126,7 +122,6 @@ function Ahorros() {
                         >
                           <div><Label>Monto</Label><Input name="amount" type="number" step="0.01" required /></div>
                           <div><Label>Fecha</Label><Input name="contribution_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
-                          <div><Label>Notas</Label><Input name="notes" /></div>
                           <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
                         </form>
                       </DialogContent>
