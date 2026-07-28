@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/panel'
 import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated/deudas'
+import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCajaMenorRouteImport } from './routes/_authenticated/caja-menor'
 import { Route as AuthenticatedAhorrosRouteImport } from './routes/_authenticated/ahorros'
 
@@ -41,6 +42,11 @@ const AuthenticatedDeudasRoute = AuthenticatedDeudasRouteImport.update({
   path: '/deudas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCajaMenorRoute = AuthenticatedCajaMenorRouteImport.update({
   id: '/caja-menor',
   path: '/caja-menor',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
+  '/calendario': typeof AuthenticatedCalendarioRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/panel': typeof AuthenticatedPanelRoute
 }
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
+  '/calendario': typeof AuthenticatedCalendarioRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/panel': typeof AuthenticatedPanelRoute
 }
@@ -75,14 +83,29 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/ahorros': typeof AuthenticatedAhorrosRoute
   '/_authenticated/caja-menor': typeof AuthenticatedCajaMenorRoute
+  '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/deudas': typeof AuthenticatedDeudasRoute
   '/_authenticated/panel': typeof AuthenticatedPanelRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/ahorros' | '/caja-menor' | '/deudas' | '/panel'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/ahorros'
+    | '/caja-menor'
+    | '/calendario'
+    | '/deudas'
+    | '/panel'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/ahorros' | '/caja-menor' | '/deudas' | '/panel'
+  to:
+    | '/'
+    | '/auth'
+    | '/ahorros'
+    | '/caja-menor'
+    | '/calendario'
+    | '/deudas'
+    | '/panel'
   id:
     | '__root__'
     | '/'
@@ -90,6 +113,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/ahorros'
     | '/_authenticated/caja-menor'
+    | '/_authenticated/calendario'
     | '/_authenticated/deudas'
     | '/_authenticated/panel'
   fileRoutesById: FileRoutesById
@@ -137,6 +161,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeudasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/calendario': {
+      id: '/_authenticated/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/caja-menor': {
       id: '/_authenticated/caja-menor'
       path: '/caja-menor'
@@ -157,6 +188,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAhorrosRoute: typeof AuthenticatedAhorrosRoute
   AuthenticatedCajaMenorRoute: typeof AuthenticatedCajaMenorRoute
+  AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedDeudasRoute: typeof AuthenticatedDeudasRoute
   AuthenticatedPanelRoute: typeof AuthenticatedPanelRoute
 }
@@ -164,6 +196,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAhorrosRoute: AuthenticatedAhorrosRoute,
   AuthenticatedCajaMenorRoute: AuthenticatedCajaMenorRoute,
+  AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedDeudasRoute: AuthenticatedDeudasRoute,
   AuthenticatedPanelRoute: AuthenticatedPanelRoute,
 }
