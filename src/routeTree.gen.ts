@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/panel'
 import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated/deudas'
+import { Route as AuthenticatedAhorrosRouteImport } from './routes/_authenticated/ahorros'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -39,16 +40,23 @@ const AuthenticatedDeudasRoute = AuthenticatedDeudasRouteImport.update({
   path: '/deudas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAhorrosRoute = AuthenticatedAhorrosRouteImport.update({
+  id: '/ahorros',
+  path: '/ahorros',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/ahorros': typeof AuthenticatedAhorrosRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/panel': typeof AuthenticatedPanelRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/ahorros': typeof AuthenticatedAhorrosRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/panel': typeof AuthenticatedPanelRoute
 }
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/ahorros': typeof AuthenticatedAhorrosRoute
   '/_authenticated/deudas': typeof AuthenticatedDeudasRoute
   '/_authenticated/panel': typeof AuthenticatedPanelRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/deudas' | '/panel'
+  fullPaths: '/' | '/auth' | '/ahorros' | '/deudas' | '/panel'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/deudas' | '/panel'
+  to: '/' | '/auth' | '/ahorros' | '/deudas' | '/panel'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/ahorros'
     | '/_authenticated/deudas'
     | '/_authenticated/panel'
   fileRoutesById: FileRoutesById
@@ -117,15 +127,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeudasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ahorros': {
+      id: '/_authenticated/ahorros'
+      path: '/ahorros'
+      fullPath: '/ahorros'
+      preLoaderRoute: typeof AuthenticatedAhorrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAhorrosRoute: typeof AuthenticatedAhorrosRoute
   AuthenticatedDeudasRoute: typeof AuthenticatedDeudasRoute
   AuthenticatedPanelRoute: typeof AuthenticatedPanelRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAhorrosRoute: AuthenticatedAhorrosRoute,
   AuthenticatedDeudasRoute: AuthenticatedDeudasRoute,
   AuthenticatedPanelRoute: AuthenticatedPanelRoute,
 }
