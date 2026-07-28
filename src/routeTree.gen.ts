@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated/reportes'
 import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/panel'
+import { Route as AuthenticatedMiembrosRouteImport } from './routes/_authenticated/miembros'
+import { Route as AuthenticatedHistorialRouteImport } from './routes/_authenticated/historial'
 import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated/deudas'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCajaMenorRouteImport } from './routes/_authenticated/caja-menor'
@@ -32,9 +35,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedReportesRoute = AuthenticatedReportesRouteImport.update({
+  id: '/reportes',
+  path: '/reportes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPanelRoute = AuthenticatedPanelRouteImport.update({
   id: '/panel',
   path: '/panel',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMiembrosRoute = AuthenticatedMiembrosRouteImport.update({
+  id: '/miembros',
+  path: '/miembros',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHistorialRoute = AuthenticatedHistorialRouteImport.update({
+  id: '/historial',
+  path: '/historial',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDeudasRoute = AuthenticatedDeudasRouteImport.update({
@@ -65,7 +83,10 @@ export interface FileRoutesByFullPath {
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/deudas': typeof AuthenticatedDeudasRoute
+  '/historial': typeof AuthenticatedHistorialRoute
+  '/miembros': typeof AuthenticatedMiembrosRoute
   '/panel': typeof AuthenticatedPanelRoute
+  '/reportes': typeof AuthenticatedReportesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -74,7 +95,10 @@ export interface FileRoutesByTo {
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/deudas': typeof AuthenticatedDeudasRoute
+  '/historial': typeof AuthenticatedHistorialRoute
+  '/miembros': typeof AuthenticatedMiembrosRoute
   '/panel': typeof AuthenticatedPanelRoute
+  '/reportes': typeof AuthenticatedReportesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,7 +109,10 @@ export interface FileRoutesById {
   '/_authenticated/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/deudas': typeof AuthenticatedDeudasRoute
+  '/_authenticated/historial': typeof AuthenticatedHistorialRoute
+  '/_authenticated/miembros': typeof AuthenticatedMiembrosRoute
   '/_authenticated/panel': typeof AuthenticatedPanelRoute
+  '/_authenticated/reportes': typeof AuthenticatedReportesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,7 +123,10 @@ export interface FileRouteTypes {
     | '/caja-menor'
     | '/calendario'
     | '/deudas'
+    | '/historial'
+    | '/miembros'
     | '/panel'
+    | '/reportes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -105,7 +135,10 @@ export interface FileRouteTypes {
     | '/caja-menor'
     | '/calendario'
     | '/deudas'
+    | '/historial'
+    | '/miembros'
     | '/panel'
+    | '/reportes'
   id:
     | '__root__'
     | '/'
@@ -115,7 +148,10 @@ export interface FileRouteTypes {
     | '/_authenticated/caja-menor'
     | '/_authenticated/calendario'
     | '/_authenticated/deudas'
+    | '/_authenticated/historial'
+    | '/_authenticated/miembros'
     | '/_authenticated/panel'
+    | '/_authenticated/reportes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -147,11 +183,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/reportes': {
+      id: '/_authenticated/reportes'
+      path: '/reportes'
+      fullPath: '/reportes'
+      preLoaderRoute: typeof AuthenticatedReportesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/panel': {
       id: '/_authenticated/panel'
       path: '/panel'
       fullPath: '/panel'
       preLoaderRoute: typeof AuthenticatedPanelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/miembros': {
+      id: '/_authenticated/miembros'
+      path: '/miembros'
+      fullPath: '/miembros'
+      preLoaderRoute: typeof AuthenticatedMiembrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/historial': {
+      id: '/_authenticated/historial'
+      path: '/historial'
+      fullPath: '/historial'
+      preLoaderRoute: typeof AuthenticatedHistorialRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/deudas': {
@@ -190,7 +247,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCajaMenorRoute: typeof AuthenticatedCajaMenorRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedDeudasRoute: typeof AuthenticatedDeudasRoute
+  AuthenticatedHistorialRoute: typeof AuthenticatedHistorialRoute
+  AuthenticatedMiembrosRoute: typeof AuthenticatedMiembrosRoute
   AuthenticatedPanelRoute: typeof AuthenticatedPanelRoute
+  AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -198,7 +258,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCajaMenorRoute: AuthenticatedCajaMenorRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedDeudasRoute: AuthenticatedDeudasRoute,
+  AuthenticatedHistorialRoute: AuthenticatedHistorialRoute,
+  AuthenticatedMiembrosRoute: AuthenticatedMiembrosRoute,
   AuthenticatedPanelRoute: AuthenticatedPanelRoute,
+  AuthenticatedReportesRoute: AuthenticatedReportesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
