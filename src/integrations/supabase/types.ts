@@ -14,16 +14,367 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity: string
+          entity_id: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity: string
+          entity_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      debt_members: {
+        Row: {
+          amount_assigned: number
+          debt_id: string
+          id: string
+          percentage: number
+          user_id: string
+        }
+        Insert: {
+          amount_assigned: number
+          debt_id: string
+          id?: string
+          percentage: number
+          user_id: string
+        }
+        Update: {
+          amount_assigned?: number
+          debt_id?: string
+          id?: string
+          percentage?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debt_members_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      debts: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_date: string
+          cuota_amount: number | null
+          current_cuota: number | null
+          debt_type: Database["public"]["Enums"]["debt_type"]
+          due_date: string | null
+          entity: string
+          id: string
+          name: string
+          notes: string | null
+          status: Database["public"]["Enums"]["debt_status"]
+          total_amount: number
+          total_cuotas: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_date?: string
+          cuota_amount?: number | null
+          current_cuota?: number | null
+          debt_type: Database["public"]["Enums"]["debt_type"]
+          due_date?: string | null
+          entity: string
+          id?: string
+          name: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["debt_status"]
+          total_amount: number
+          total_cuotas?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_date?: string
+          cuota_amount?: number | null
+          current_cuota?: number | null
+          debt_type?: Database["public"]["Enums"]["debt_type"]
+          due_date?: string | null
+          entity?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["debt_status"]
+          total_amount?: number
+          total_cuotas?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          description: string | null
+          expense_date: string
+          id: string
+          paid_by: string
+        }
+        Insert: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          paid_by: string
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          paid_by?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          related_id: string | null
+          type: Database["public"]["Enums"]["notif_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          related_id?: string | null
+          type: Database["public"]["Enums"]["notif_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          related_id?: string | null
+          type?: Database["public"]["Enums"]["notif_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          debt_id: string
+          id: string
+          notes: string | null
+          payment_date: string
+          proof_url: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          debt_id: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          proof_url?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          debt_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          proof_url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          id: string
+          name?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      savings_contributions: {
+        Row: {
+          amount: number
+          contribution_date: string
+          created_at: string
+          goal_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          contribution_date?: string
+          created_at?: string
+          goal_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          contribution_date?: string
+          created_at?: string
+          goal_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "savings_contributions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "savings_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      savings_goals: {
+        Row: {
+          created_at: string
+          created_by: string
+          current_amount: number
+          due_date: string | null
+          id: string
+          is_challenge: boolean
+          name: string
+          target_amount: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          current_amount?: number
+          due_date?: string | null
+          id?: string
+          is_challenge?: boolean
+          name: string
+          target_amount: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          current_amount?: number
+          due_date?: string | null
+          id?: string
+          is_challenge?: boolean
+          name?: string
+          target_amount?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_role_is_admin: { Args: never; Returns: boolean }
+      current_role_is_member_or_admin: { Args: never; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "miembro" | "invitado"
+      debt_status: "activa" | "pagada" | "mora"
+      debt_type: "unico" | "cuotas"
+      expense_category:
+        | "mercado"
+        | "transporte"
+        | "salud"
+        | "servicios"
+        | "otros"
+      notif_type:
+        | "nueva_deuda"
+        | "por_vencer"
+        | "en_mora"
+        | "abono_registrado"
+        | "meta_completada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +501,24 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "miembro", "invitado"],
+      debt_status: ["activa", "pagada", "mora"],
+      debt_type: ["unico", "cuotas"],
+      expense_category: [
+        "mercado",
+        "transporte",
+        "salud",
+        "servicios",
+        "otros",
+      ],
+      notif_type: [
+        "nueva_deuda",
+        "por_vencer",
+        "en_mora",
+        "abono_registrado",
+        "meta_completada",
+      ],
+    },
   },
 } as const
