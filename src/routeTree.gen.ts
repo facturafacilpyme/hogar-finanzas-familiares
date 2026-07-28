@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/panel'
 import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated/deudas'
+import { Route as AuthenticatedCajaMenorRouteImport } from './routes/_authenticated/caja-menor'
 import { Route as AuthenticatedAhorrosRouteImport } from './routes/_authenticated/ahorros'
 
 const AuthRoute = AuthRouteImport.update({
@@ -40,6 +41,11 @@ const AuthenticatedDeudasRoute = AuthenticatedDeudasRouteImport.update({
   path: '/deudas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCajaMenorRoute = AuthenticatedCajaMenorRouteImport.update({
+  id: '/caja-menor',
+  path: '/caja-menor',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAhorrosRoute = AuthenticatedAhorrosRouteImport.update({
   id: '/ahorros',
   path: '/ahorros',
@@ -50,6 +56,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
+  '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/panel': typeof AuthenticatedPanelRoute
 }
@@ -57,6 +64,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
+  '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/panel': typeof AuthenticatedPanelRoute
 }
@@ -66,20 +74,22 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/ahorros': typeof AuthenticatedAhorrosRoute
+  '/_authenticated/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/_authenticated/deudas': typeof AuthenticatedDeudasRoute
   '/_authenticated/panel': typeof AuthenticatedPanelRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/ahorros' | '/deudas' | '/panel'
+  fullPaths: '/' | '/auth' | '/ahorros' | '/caja-menor' | '/deudas' | '/panel'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/ahorros' | '/deudas' | '/panel'
+  to: '/' | '/auth' | '/ahorros' | '/caja-menor' | '/deudas' | '/panel'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/ahorros'
+    | '/_authenticated/caja-menor'
     | '/_authenticated/deudas'
     | '/_authenticated/panel'
   fileRoutesById: FileRoutesById
@@ -127,6 +137,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeudasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/caja-menor': {
+      id: '/_authenticated/caja-menor'
+      path: '/caja-menor'
+      fullPath: '/caja-menor'
+      preLoaderRoute: typeof AuthenticatedCajaMenorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ahorros': {
       id: '/_authenticated/ahorros'
       path: '/ahorros'
@@ -139,12 +156,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAhorrosRoute: typeof AuthenticatedAhorrosRoute
+  AuthenticatedCajaMenorRoute: typeof AuthenticatedCajaMenorRoute
   AuthenticatedDeudasRoute: typeof AuthenticatedDeudasRoute
   AuthenticatedPanelRoute: typeof AuthenticatedPanelRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAhorrosRoute: AuthenticatedAhorrosRoute,
+  AuthenticatedCajaMenorRoute: AuthenticatedCajaMenorRoute,
   AuthenticatedDeudasRoute: AuthenticatedDeudasRoute,
   AuthenticatedPanelRoute: AuthenticatedPanelRoute,
 }

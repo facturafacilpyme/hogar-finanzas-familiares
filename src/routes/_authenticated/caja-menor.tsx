@@ -25,6 +25,7 @@ function CajaMenor() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
   const [filter, setFilter] = useState<string>("todos");
+  const [cat, setCat] = useState<string>("alimentacion");
 
   async function load() {
     const [{ data: e }, { data: p }] = await Promise.all([
@@ -67,7 +68,7 @@ function CajaMenor() {
                   const fd = new FormData(e.currentTarget);
                   const { error } = await supabase.from("expenses").insert({
                     amount: Number(fd.get("amount")),
-                    category: fd.get("category") as any,
+                    category: cat as any,
                     description: String(fd.get("description") || "") || null,
                     expense_date: String(fd.get("expense_date")),
                     paid_by: user!.id,
@@ -82,13 +83,12 @@ function CajaMenor() {
                 <div><Label>Monto</Label><Input name="amount" type="number" step="0.01" required /></div>
                 <div>
                   <Label>Categoría</Label>
-                  <Select name="category" defaultValue="alimentacion">
+                  <Select value={cat} onValueChange={setCat}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CATEGORIAS.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <input type="hidden" name="category" />
                 </div>
                 <div><Label>Fecha</Label><Input name="expense_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
                 <div><Label>Descripción</Label><Input name="description" /></div>
