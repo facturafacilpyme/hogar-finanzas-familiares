@@ -21,7 +21,15 @@ function Auth() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) nav({ to: "/panel" });
+    if (!user) return;
+    let pending: string | null = null;
+    try { pending = sessionStorage.getItem("pending_invite_token"); } catch {}
+    if (pending) {
+      sessionStorage.removeItem("pending_invite_token");
+      nav({ to: "/invitacion/$token", params: { token: pending } });
+    } else {
+      nav({ to: "/panel" });
+    }
   }, [user, nav]);
 
   async function signIn(e: React.FormEvent<HTMLFormElement>) {

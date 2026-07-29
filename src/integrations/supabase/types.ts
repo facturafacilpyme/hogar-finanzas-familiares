@@ -160,6 +160,39 @@ export type Database = {
         }
         Relationships: []
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by: string
+          expires_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -357,6 +390,12 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      redeem_invitation: {
+        Args: { _token: string }
+        Returns: {
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
       }
     }
     Enums: {

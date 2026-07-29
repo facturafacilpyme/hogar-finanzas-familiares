@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InvitacionTokenRouteImport } from './routes/invitacion.$token'
 import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated/reportes'
 import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/panel'
 import { Route as AuthenticatedMiembrosRouteImport } from './routes/_authenticated/miembros'
@@ -33,6 +34,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitacionTokenRoute = InvitacionTokenRouteImport.update({
+  id: '/invitacion/$token',
+  path: '/invitacion/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedReportesRoute = AuthenticatedReportesRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/miembros': typeof AuthenticatedMiembrosRoute
   '/panel': typeof AuthenticatedPanelRoute
   '/reportes': typeof AuthenticatedReportesRoute
+  '/invitacion/$token': typeof InvitacionTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/miembros': typeof AuthenticatedMiembrosRoute
   '/panel': typeof AuthenticatedPanelRoute
   '/reportes': typeof AuthenticatedReportesRoute
+  '/invitacion/$token': typeof InvitacionTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/miembros': typeof AuthenticatedMiembrosRoute
   '/_authenticated/panel': typeof AuthenticatedPanelRoute
   '/_authenticated/reportes': typeof AuthenticatedReportesRoute
+  '/invitacion/$token': typeof InvitacionTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/miembros'
     | '/panel'
     | '/reportes'
+    | '/invitacion/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/miembros'
     | '/panel'
     | '/reportes'
+    | '/invitacion/$token'
   id:
     | '__root__'
     | '/'
@@ -152,12 +163,14 @@ export interface FileRouteTypes {
     | '/_authenticated/miembros'
     | '/_authenticated/panel'
     | '/_authenticated/reportes'
+    | '/invitacion/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  InvitacionTokenRoute: typeof InvitacionTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invitacion/$token': {
+      id: '/invitacion/$token'
+      path: '/invitacion/$token'
+      fullPath: '/invitacion/$token'
+      preLoaderRoute: typeof InvitacionTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/reportes': {
@@ -271,6 +291,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  InvitacionTokenRoute: InvitacionTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
