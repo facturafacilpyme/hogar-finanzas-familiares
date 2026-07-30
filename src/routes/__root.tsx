@@ -79,19 +79,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "HogarFin — Organizador Familiar de Finanzas" },
-      { name: "description", content: "Controla deudas, asigna pagos y ahorra en familia con HogarFin." },
-      { property: "og:title", content: "HogarFin — Organizador Familiar de Finanzas" },
-      { property: "og:description", content: "Controla deudas, asigna pagos y ahorra en familia." },
+      { title: "HogarFin — Organiza las finanzas de tu familia" },
+      { name: "description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
+      { property: "og:title", content: "HogarFin — Organiza las finanzas de tu familia" },
+      { property: "og:description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "HogarFin — Organiza las finanzas de tu familia" },
+      { name: "twitter:description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/mull5ed3x6cp8iMWv2dbq3cC7Kw2/social-images/social-1785446724992-104429.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/mull5ed3x6cp8iMWv2dbq3cC7Kw2/social-images/social-1785446724992-104429.webp" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {

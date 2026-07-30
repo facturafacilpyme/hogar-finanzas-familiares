@@ -10,8 +10,8 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "HogarFin — Organiza las finanzas de tu familia" },
       { name: "description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
-      { property: "og:title", content: "HogarFin — Finanzas Familiares" },
-      { property: "og:description", content: "Deudas, ahorros y caja menor en un solo lugar. Gratis para tu familia." },
+      { property: "og:title", content: "HogarFin — Organiza las finanzas de tu familia" },
+      { property: "og:description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
     ],
   }),
   component: Landing,
