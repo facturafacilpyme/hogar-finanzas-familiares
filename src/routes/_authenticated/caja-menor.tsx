@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/caja-menor")({
 const CATEGORIAS = ["alimentacion", "transporte", "servicios", "salud", "educacion", "entretenimiento", "otros"] as const;
 
 function CajaMenor() {
-  const { user, role } = useAuth();
+  const { user, role, familyId } = useAuth();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
@@ -28,14 +28,15 @@ function CajaMenor() {
   const [cat, setCat] = useState<string>("alimentacion");
 
   async function load() {
+    if (!familyId) return;
     const [{ data: e }, { data: p }] = await Promise.all([
-      supabase.from("expenses").select("*").order("expense_date", { ascending: false }),
+      supabase.from("expenses").select("*").eq("family_id", familyId).order("expense_date", { ascending: false }),
       supabase.from("profiles").select("*"),
     ]);
     setExpenses(e ?? []);
     setProfiles(p ?? []);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [familyId]);
 
   const filtered = expenses.filter((x) => filter === "todos" || x.category === filter);
   const totalMes = useMemo(() => {
@@ -72,6 +73,7 @@ function CajaMenor() {
                     description: String(fd.get("description") || "") || null,
                     expense_date: String(fd.get("expense_date")),
                     paid_by: user!.id,
+                    family_id: familyId!,
                   });
                   if (error) return toast.error(error.message);
                   toast.success("Gasto registrado");
