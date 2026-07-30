@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/deudas")({
 });
 
 function Deudas() {
-  const { user, role } = useAuth();
+  const { user, role, familyId } = useAuth();
   const [debts, setDebts] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -29,18 +29,19 @@ function Deudas() {
   const [openNew, setOpenNew] = useState(false);
 
   async function load() {
+    if (!familyId) return;
     const [{ data: d }, { data: m }, { data: p }, { data: pay }] = await Promise.all([
-      supabase.from("debts").select("*").order("created_at", { ascending: false }),
-      supabase.from("debt_members").select("*"),
-      supabase.from("profiles").select("*"),
-      supabase.from("payments").select("*"),
+      supabase.from("debts").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
+      supabase.from("debt_members").select("*").eq("family_id", familyId),
+      supabase.from("family_members").select("profiles:user_id(id, name, email)").eq("family_id", familyId),
+      supabase.from("payments").select("*").eq("family_id", familyId),
     ]);
     setDebts(d ?? []);
     setMembers(m ?? []);
-    setProfiles(p ?? []);
+    setProfiles((p ?? []).map((x: any) => x.profiles).filter(Boolean));
     setPayments(pay ?? []);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [familyId]);
 
   const filtered = debts.filter((d) => filterStatus === "todos" || d.status === filterStatus);
   const isAdmin = role === "admin";
@@ -67,7 +68,7 @@ function Deudas() {
               <DialogTrigger asChild>
                 <Button><Plus className="mr-1 h-4 w-4" /> Nueva</Button>
               </DialogTrigger>
-              <NewDebtDialog profiles={profiles} onDone={() => { setOpenNew(false); load(); }} userId={user!.id} />
+              <NewDebtDialog profiles={profiles} onDone={() => { setOpenNew(false); load(); }} userId={user!.id} familyId={familyId!} />
             </Dialog>
           )}
         </div>
@@ -171,7 +172,7 @@ function DebtCard({ debt, members, profiles, payments, onChange, canPay, isAdmin
   );
 }
 
-function NewDebtDialog({ profiles, onDone, userId }: any) {
+function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
   const [type, setType] = useState<"unico" | "cuotas">("unico");
   const [total, setTotal] = useState("");
   const [assign, setAssign] = useState<Record<string, string>>({});
@@ -199,6 +200,7 @@ function NewDebtDialog({ profiles, onDone, userId }: any) {
       due_date: (String(fd.get("due_date")) || null),
       notes: String(fd.get("notes") || "") || null,
       created_by: userId,
+      family_id: familyId,
     }).select().single();
     if (error) { toast.error(error.message); setLoading(false); return; }
     const rows = Object.entries(assign)
