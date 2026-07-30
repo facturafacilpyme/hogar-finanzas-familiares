@@ -21,6 +21,7 @@ export type Database = {
           details: Json | null
           entity: string
           entity_id: string | null
+          family_id: string | null
           id: string
           user_id: string | null
         }
@@ -30,6 +31,7 @@ export type Database = {
           details?: Json | null
           entity: string
           entity_id?: string | null
+          family_id?: string | null
           id?: string
           user_id?: string | null
         }
@@ -39,15 +41,25 @@ export type Database = {
           details?: Json | null
           entity?: string
           entity_id?: string | null
+          family_id?: string | null
           id?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       debt_members: {
         Row: {
           amount_assigned: number
           debt_id: string
+          family_id: string | null
           id: string
           percentage: number
           user_id: string
@@ -55,6 +67,7 @@ export type Database = {
         Insert: {
           amount_assigned: number
           debt_id: string
+          family_id?: string | null
           id?: string
           percentage: number
           user_id: string
@@ -62,6 +75,7 @@ export type Database = {
         Update: {
           amount_assigned?: number
           debt_id?: string
+          family_id?: string | null
           id?: string
           percentage?: number
           user_id?: string
@@ -72,6 +86,13 @@ export type Database = {
             columns: ["debt_id"]
             isOneToOne: false
             referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debt_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
@@ -86,6 +107,7 @@ export type Database = {
           debt_type: Database["public"]["Enums"]["debt_type"]
           due_date: string | null
           entity: string
+          family_id: string
           id: string
           name: string
           notes: string | null
@@ -103,6 +125,7 @@ export type Database = {
           debt_type: Database["public"]["Enums"]["debt_type"]
           due_date?: string | null
           entity: string
+          family_id: string
           id?: string
           name: string
           notes?: string | null
@@ -120,6 +143,7 @@ export type Database = {
           debt_type?: Database["public"]["Enums"]["debt_type"]
           due_date?: string | null
           entity?: string
+          family_id?: string
           id?: string
           name?: string
           notes?: string | null
@@ -128,7 +152,15 @@ export type Database = {
           total_cuotas?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "debts_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -137,6 +169,7 @@ export type Database = {
           created_at: string
           description: string | null
           expense_date: string
+          family_id: string
           id: string
           paid_by: string
         }
@@ -146,6 +179,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           expense_date?: string
+          family_id: string
           id?: string
           paid_by: string
         }
@@ -155,10 +189,75 @@ export type Database = {
           created_at?: string
           description?: string | null
           expense_date?: string
+          family_id?: string
           id?: string
           paid_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      families: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
         Relationships: []
+      }
+      family_members: {
+        Row: {
+          created_at: string
+          family_id: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invitations: {
         Row: {
@@ -167,6 +266,7 @@ export type Database = {
           created_at: string
           created_by: string
           expires_at: string
+          family_id: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           token: string
@@ -177,6 +277,7 @@ export type Database = {
           created_at?: string
           created_by: string
           expires_at?: string
+          family_id: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
@@ -187,15 +288,25 @@ export type Database = {
           created_at?: string
           created_by?: string
           expires_at?: string
+          family_id?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invitations_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
           created_at: string
+          family_id: string
           id: string
           message: string
           read: boolean
@@ -205,6 +316,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          family_id: string
           id?: string
           message: string
           read?: boolean
@@ -214,6 +326,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          family_id?: string
           id?: string
           message?: string
           read?: boolean
@@ -221,13 +334,22 @@ export type Database = {
           type?: Database["public"]["Enums"]["notif_type"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
           amount: number
           created_at: string
           debt_id: string
+          family_id: string | null
           id: string
           notes: string | null
           payment_date: string
@@ -238,6 +360,7 @@ export type Database = {
           amount: number
           created_at?: string
           debt_id: string
+          family_id?: string | null
           id?: string
           notes?: string | null
           payment_date?: string
@@ -248,6 +371,7 @@ export type Database = {
           amount?: number
           created_at?: string
           debt_id?: string
+          family_id?: string | null
           id?: string
           notes?: string | null
           payment_date?: string
@@ -260,6 +384,13 @@ export type Database = {
             columns: ["debt_id"]
             isOneToOne: false
             referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
@@ -293,6 +424,7 @@ export type Database = {
           amount: number
           contribution_date: string
           created_at: string
+          family_id: string | null
           goal_id: string
           id: string
           user_id: string
@@ -301,6 +433,7 @@ export type Database = {
           amount: number
           contribution_date?: string
           created_at?: string
+          family_id?: string | null
           goal_id: string
           id?: string
           user_id: string
@@ -309,11 +442,19 @@ export type Database = {
           amount?: number
           contribution_date?: string
           created_at?: string
+          family_id?: string | null
           goal_id?: string
           id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "savings_contributions_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "savings_contributions_goal_id_fkey"
             columns: ["goal_id"]
@@ -329,6 +470,7 @@ export type Database = {
           created_by: string
           current_amount: number
           due_date: string | null
+          family_id: string
           id: string
           is_challenge: boolean
           name: string
@@ -339,6 +481,7 @@ export type Database = {
           created_by: string
           current_amount?: number
           due_date?: string | null
+          family_id: string
           id?: string
           is_challenge?: boolean
           name: string
@@ -349,51 +492,47 @@ export type Database = {
           created_by?: string
           current_amount?: number
           due_date?: string | null
+          family_id?: string
           id?: string
           is_challenge?: boolean
           name?: string
           target_amount?: number
         }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "savings_goals_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      current_role_is_admin: { Args: never; Returns: boolean }
-      current_role_is_member_or_admin: { Args: never; Returns: boolean }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
+      can_write_family: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: boolean
+      }
+      family_role: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      is_family_admin: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_family_member: {
+        Args: { _family_id: string; _user_id: string }
         Returns: boolean
       }
       redeem_invitation: {
         Args: { _token: string }
         Returns: {
+          family_id: string
           role: Database["public"]["Enums"]["app_role"]
         }[]
       }

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,12 +16,14 @@ const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "
 const DIAS = ["D", "L", "M", "X", "J", "V", "S"];
 
 function Calendario() {
+  const { familyId } = useAuth();
   const [debts, setDebts] = useState<any[]>([]);
   const [ref, setRef] = useState(new Date());
 
   useEffect(() => {
-    supabase.from("debts").select("*").then(({ data }) => setDebts(data ?? []));
-  }, []);
+    if (!familyId) return;
+    supabase.from("debts").select("*").eq("family_id", familyId).then(({ data }) => setDebts(data ?? []));
+  }, [familyId]);
 
   const y = ref.getFullYear();
   const m = ref.getMonth();

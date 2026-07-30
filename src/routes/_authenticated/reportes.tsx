@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,14 +17,16 @@ export const Route = createFileRoute("/_authenticated/reportes")({
 const COLORS = ["oklch(0.62 0.16 155)", "oklch(0.78 0.16 78)", "oklch(0.65 0.2 25)", "oklch(0.55 0.15 260)", "oklch(0.7 0.14 190)", "oklch(0.7 0.16 30)", "oklch(0.5 0.1 300)"];
 
 function Reportes() {
+  const { familyId } = useAuth();
   const [expensesByCat, setExpensesByCat] = useState<any[]>([]);
   const [debtsByMember, setDebtsByMember] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
+      if (!familyId) return;
       const [{ data: exp }, { data: dm }, { data: profiles }] = await Promise.all([
-        supabase.from("expenses").select("category, amount"),
-        supabase.from("debt_members").select("user_id, amount_assigned"),
+        supabase.from("expenses").select("category, amount").eq("family_id", familyId),
+        supabase.from("debt_members").select("user_id, amount_assigned").eq("family_id", familyId),
         supabase.from("profiles").select("id, name"),
       ]);
       const catMap = new Map<string, number>();
@@ -37,7 +40,7 @@ function Reportes() {
         value,
       })));
     })();
-  }, []);
+  }, [familyId]);
 
   return (
     <div className="space-y-4">

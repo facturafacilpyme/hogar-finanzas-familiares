@@ -18,16 +18,21 @@ export const Route = createFileRoute("/_authenticated/ahorros")({
 });
 
 function Ahorros() {
-  const { user, role } = useAuth();
+  const { user, role, familyId } = useAuth();
   const [goals, setGoals] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
   const [openContrib, setOpenContrib] = useState<string | null>(null);
 
   async function load() {
-    const { data } = await supabase.from("savings_goals").select("*").order("created_at", { ascending: false });
+    if (!familyId) return;
+    const { data } = await supabase
+      .from("savings_goals")
+      .select("*")
+      .eq("family_id", familyId)
+      .order("created_at", { ascending: false });
     setGoals(data ?? []);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [familyId]);
 
   const canWrite = role !== "invitado";
   const isAdmin = role === "admin";
@@ -53,6 +58,7 @@ function Ahorros() {
                     target_amount: Number(fd.get("target_amount")),
                     due_date: String(fd.get("due_date") || "") || null,
                     created_by: user!.id,
+                    family_id: familyId!,
                   });
                   if (error) return toast.error(error.message);
                   toast.success("Meta creada");

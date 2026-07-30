@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,19 +12,21 @@ export const Route = createFileRoute("/_authenticated/historial")({
 });
 
 function Historial() {
+  const { familyId } = useAuth();
   const [log, setLog] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
+      if (!familyId) return;
       const [{ data: l }, { data: p }] = await Promise.all([
-        supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("activity_log").select("*").eq("family_id", familyId).order("created_at", { ascending: false }).limit(100),
         supabase.from("profiles").select("*"),
       ]);
       setLog(l ?? []);
       setProfiles(p ?? []);
     })();
-  }, []);
+  }, [familyId]);
 
   return (
     <div className="space-y-4">
