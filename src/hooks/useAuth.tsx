@@ -11,12 +11,24 @@ interface Profile {
   avatar_url: string | null;
 }
 
+export interface Membership {
+  family_id: string;
+  family_name: string;
+  role: Role;
+}
+
+const STORAGE_KEY = "hogarfin_family_id";
+
 interface AuthCtx {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   role: Role | null;
   loading: boolean;
+  memberships: Membership[];
+  familyId: string | null;
+  familyName: string | null;
+  setFamilyId: (id: string) => void;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -27,16 +39,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [familyId, setFamilyIdState] = useState<string | null>(null);
+
+  function setFamilyId(id: string) {
+    setFamilyIdState(id);
+    try {
+      localStorage.setItem(STORAGE_KEY, id);
+    } catch {}
+  }
 
   async function loadRoleProfile(uid: string) {
-    const [{ data: p }, { data: r }] = await Promise.all([
+    const [{ data: p }, { data: fm }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", uid).order("role").limit(1).maybeSingle(),
+      supabase
+        .from("family_members")
+        .select("family_id, role, families(name)")
+        .eq("user_id", uid)
+        .order("created_at"),
     ]);
     setProfile((p as Profile | null) ?? null);
-    setRole((r?.role as Role | undefined) ?? "invitado");
+    const list: Membership[] = (fm ?? []).map((m: any) => ({
+      family_id: m.family_id,
+      family_name: m.families?.name ?? "Mi familia",
+      role: m.role as Role,
+    }));
+    setMemberships(list);
+
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(STORAGE_KEY);
+    } catch {}
+    const valid = list.find((m) => m.family_id === stored) ?? list[0] ?? null;
+    setFamilyIdState(valid?.family_id ?? null);
   }
 
   async function refresh() {
@@ -46,7 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.session?.user) await loadRoleProfile(data.session.user.id);
     else {
       setProfile(null);
-      setRole(null);
+      setMemberships([]);
+      setFamilyIdState(null);
     }
   }
 
@@ -60,7 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }, 0);
       } else {
         setProfile(null);
-        setRole(null);
+        setMemberships([]);
+        setFamilyIdState(null);
       }
     });
     refresh().finally(() => setLoading(false));
@@ -68,11 +106,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signOut() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
     await supabase.auth.signOut();
   }
 
+  const current = memberships.find((m) => m.family_id === familyId) ?? null;
+
   return (
-    <Ctx.Provider value={{ user, session, profile, role, loading, signOut, refresh }}>
+    <Ctx.Provider
+      value={{
+        user,
+        session,
+        profile,
+        role: current?.role ?? null,
+        loading,
+        memberships,
+        familyId,
+        familyName: current?.family_name ?? null,
+        setFamilyId,
+        signOut,
+        refresh,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );
