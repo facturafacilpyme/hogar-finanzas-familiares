@@ -12,16 +12,17 @@ export const Route = createFileRoute("/_authenticated/panel")({
 });
 
 function Panel() {
-  const { profile, role } = useAuth();
+  const { profile, role, familyId, familyName } = useAuth();
   const [stats, setStats] = useState({ totalDebt: 0, totalSaved: 0, active: 0 });
   const [upcoming, setUpcoming] = useState<Array<{ id: string; name: string; entity: string; due_date: string }>>([]);
 
   useEffect(() => {
     (async () => {
+      if (!familyId) return;
       const [{ data: debts }, { data: goals }, { data: pays }] = await Promise.all([
-        supabase.from("debts").select("*"),
-        supabase.from("savings_goals").select("current_amount"),
-        supabase.from("payments").select("debt_id, amount"),
+        supabase.from("debts").select("*").eq("family_id", familyId),
+        supabase.from("savings_goals").select("current_amount").eq("family_id", familyId),
+        supabase.from("payments").select("debt_id, amount").eq("family_id", familyId),
       ]);
       const totalDebt = (debts ?? []).reduce((s, d) => s + Number(d.total_amount), 0);
       const totalPaid = (pays ?? []).reduce((s, p) => s + Number(p.amount), 0);
@@ -35,13 +36,15 @@ function Panel() {
           .slice(0, 5),
       );
     })();
-  }, []);
+  }, [familyId]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Hola, {profile?.name} 👋</h1>
-        <p className="text-sm text-muted-foreground">Aquí está el resumen de tu hogar.</p>
+        <p className="text-sm text-muted-foreground">
+          Resumen de {familyName ?? "tu hogar"}.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
