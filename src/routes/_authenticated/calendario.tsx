@@ -18,11 +18,17 @@ const DIAS = ["D", "L", "M", "X", "J", "V", "S"];
 function Calendario() {
   const { familyId } = useAuth();
   const [debts, setDebts] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
   const [ref, setRef] = useState(new Date());
 
   useEffect(() => {
     if (!familyId) return;
     supabase.from("debts").select("*").eq("family_id", familyId).then(({ data }) => setDebts(data ?? []));
+    supabase
+      .from("savings_goals")
+      .select("*")
+      .eq("family_id", familyId)
+      .then(({ data }) => setGoals(data ?? []));
   }, [familyId]);
 
   const y = ref.getFullYear();
@@ -37,11 +43,20 @@ function Calendario() {
       const date = new Date(d.due_date);
       if (date.getFullYear() === y && date.getMonth() === m) {
         const day = date.getDate();
-        map.set(day, [...(map.get(day) ?? []), d]);
+        map.set(day, [...(map.get(day) ?? []), { ...d, kind: "deuda" }]);
+      }
+    });
+    goals.forEach((g) => {
+      if (!g.due_date) return;
+      if (Number(g.current_amount) >= Number(g.target_amount)) return;
+      const date = new Date(g.due_date);
+      if (date.getFullYear() === y && date.getMonth() === m) {
+        const day = date.getDate();
+        map.set(day, [...(map.get(day) ?? []), { ...g, kind: "meta" }]);
       }
     });
     return map;
-  }, [debts, y, m]);
+  }, [debts, goals, y, m]);
 
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -75,7 +90,12 @@ function Calendario() {
                 {c && <>
                   <div className="text-right font-semibold">{c}</div>
                   {(byDay.get(c) ?? []).slice(0, 2).map((d) => (
-                    <div key={d.id} className="mt-0.5 truncate rounded bg-primary/15 px-1 text-[10px] font-medium text-primary">
+                    <div
+                      key={d.id}
+                      className={`mt-0.5 truncate rounded px-1 text-[10px] font-medium ${
+                        d.kind === "meta" ? "bg-success/20 text-success" : "bg-primary/15 text-primary"
+                      }`}
+                    >
                       {d.name}
                     </div>
                   ))}
@@ -90,15 +110,32 @@ function Calendario() {
       </Card>
 
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">Pagos del mes</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">Pagos y metas del mes</h2>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-primary" /> Deuda
+          </span>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-success" /> Meta de ahorro
+          </span>
+        </div>
         {[...byDay.entries()].sort(([a], [b]) => a - b).map(([day, items]) => (
           <Card key={day}>
             <CardContent className="p-3">
               <div className="mb-1 text-xs font-semibold text-muted-foreground">Día {day}</div>
               {items.map((d) => (
-                <div key={d.id} className="flex justify-between text-sm">
-                  <span>{d.name} · <span className="text-muted-foreground">{d.entity}</span></span>
-                  <span className="font-semibold">{formatCOP(d.total_amount)}</span>
+                <div key={d.id} className="flex justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate">
+                    {d.name} ·{" "}
+                    <span className="text-muted-foreground">
+                      {d.kind === "meta" ? "Meta de ahorro" : d.entity}
+                    </span>
+                  </span>
+                  <span className={`shrink-0 font-semibold ${d.kind === "meta" ? "text-success" : ""}`}>
+                    {d.kind === "meta"
+                      ? `${formatCOP(Number(d.target_amount) - Number(d.current_amount))} por reunir`
+                      : formatCOP(d.total_amount)}
+                  </span>
                 </div>
               ))}
             </CardContent>
