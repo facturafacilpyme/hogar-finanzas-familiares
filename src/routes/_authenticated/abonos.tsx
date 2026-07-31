@@ -1,0 +1,163 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { HandCoins, Search } from "lucide-react";
+import { formatCOP, formatDate } from "@/lib/currency";
+import { ProofLink } from "@/components/ProofLink";
+import { useAuth } from "@/hooks/useAuth";
+
+export const Route = createFileRoute("/_authenticated/abonos")({
+  head: () => ({
+    meta: [
+      { title: "Abonos — HogarFin" },
+      { name: "description", content: "Gestión y seguimiento de abonos a las deudas del hogar." },
+      { property: "og:title", content: "Abonos — HogarFin" },
+      { property: "og:description", content: "Gestión y seguimiento de abonos a las deudas del hogar." },
+    ],
+  }),
+  component: Abonos,
+});
+
+function Abonos() {
+  const { familyId } = useAuth();
+  const [payments, setPayments] = useState<any[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [member, setMember] = useState("todos");
+  const [debt, setDebt] = useState("todas");
+
+  useEffect(() => {
+    (async () => {
+      if (!familyId) return;
+      const [{ data: pay }, { data: d }, { data: fm }] = await Promise.all([
+        supabase.from("payments").select("*").eq("family_id", familyId).order("payment_date", { ascending: false }),
+        supabase.from("debts").select("id, name, entity, total_amount").eq("family_id", familyId),
+        supabase.from("family_members").select("user_id").eq("family_id", familyId),
+      ]);
+      const ids = (fm ?? []).map((x: any) => x.user_id);
+      const { data: profs } = ids.length
+        ? await supabase.from("profiles").select("id, name, email").in("id", ids)
+        : { data: [] as any[] };
+      setPayments(pay ?? []);
+      setDebts(d ?? []);
+      setProfiles(profs ?? []);
+    })();
+  }, [familyId]);
+
+  const nameOf = (id: string) => profiles.find((p) => p.id === id)?.name ?? "—";
+  const debtOf = (id: string) => debts.find((d) => d.id === id);
+
+  const filtered = useMemo(
+    () =>
+      payments.filter((p) => {
+        if (member !== "todos" && p.user_id !== member) return false;
+        if (debt !== "todas" && p.debt_id !== debt) return false;
+        if (!q.trim()) return true;
+        const t = q.toLowerCase();
+        return (
+          (debtOf(p.debt_id)?.name ?? "").toLowerCase().includes(t) ||
+          (debtOf(p.debt_id)?.entity ?? "").toLowerCase().includes(t) ||
+          nameOf(p.user_id).toLowerCase().includes(t) ||
+          (p.notes ?? "").toLowerCase().includes(t)
+        );
+      }),
+    [payments, member, debt, q, profiles, debts],
+  );
+
+  const total = filtered.reduce((s, p) => s + Number(p.amount), 0);
+
+  const porMiembro = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach((p) => map.set(p.user_id, (map.get(p.user_id) ?? 0) + Number(p.amount)));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold">Abonos</h1>
+        <p className="text-sm text-muted-foreground">Todos los pagos registrados a las deudas del hogar.</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-success/15 text-success">
+              <HandCoins className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs uppercase text-muted-foreground">Total abonado</div>
+              <div className="text-xl font-bold">{formatCOP(total)}</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="sm:col-span-1 lg:col-span-2">
+          <CardContent className="flex flex-wrap gap-2 p-4">
+            {porMiembro.length === 0 ? (
+              <span className="text-sm text-muted-foreground">Sin abonos.</span>
+            ) : (
+              porMiembro.map(([uid, v]) => (
+                <Badge key={uid} variant="secondary" className="font-normal">
+                  {nameOf(uid)} · {formatCOP(v)}
+                </Badge>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input className="pl-8" placeholder="Buscar deuda, persona o nota…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <Select value={member} onValueChange={setMember}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas las personas</SelectItem>
+            {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={debt} onValueChange={setDebt}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas las deudas</SelectItem>
+            {debts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card><CardContent className="p-10 text-center text-muted-foreground">No hay abonos con estos filtros.</CardContent></Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <ul className="divide-y">
+              {filtered.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{debtOf(p.debt_id)?.name ?? "Deuda"}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {nameOf(p.user_id)} · {formatDate(p.payment_date)}
+                      {debtOf(p.debt_id)?.entity ? ` · ${debtOf(p.debt_id)?.entity}` : ""}
+                    </div>
+                    {p.notes && <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.notes}</div>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ProofLink path={p.proof_url} />
+                    <span className="font-bold text-success">{formatCOP(p.amount)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

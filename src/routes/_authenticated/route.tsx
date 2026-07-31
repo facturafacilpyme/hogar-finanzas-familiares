@@ -24,6 +24,7 @@ import {
   History,
   Users,
   LogOut,
+  HandCoins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/_authenticated")({
 const items = [
   { title: "Panel", to: "/panel", icon: LayoutDashboard },
   { title: "Deudas", to: "/deudas", icon: Wallet },
+  { title: "Abonos", to: "/abonos", icon: HandCoins },
   { title: "Calendario", to: "/calendario", icon: Calendar },
   { title: "Ahorros", to: "/ahorros", icon: PiggyBank },
   { title: "Caja Menor", to: "/caja-menor", icon: Receipt },
@@ -72,9 +74,7 @@ function AuthedLayout() {
         <Sidebar collapsible="icon">
           <SidebarHeader>
             <div className="flex items-center gap-2 px-2 py-2">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-                <Wallet className="h-4 w-4" />
-              </div>
+              <img src="/favicon.ico" alt="Logo de HogarFin" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
               <div className="min-w-0 group-data-[collapsible=icon]:hidden">
                 <div className="truncate font-display font-bold">HogarFin</div>
                 <div className="truncate text-xs text-muted-foreground">

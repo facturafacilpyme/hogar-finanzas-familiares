@@ -61,7 +61,7 @@ export type Database = {
           debt_id: string
           family_id: string | null
           id: string
-          percentage: number
+          percentage: number | null
           user_id: string
         }
         Insert: {
@@ -69,7 +69,7 @@ export type Database = {
           debt_id: string
           family_id?: string | null
           id?: string
-          percentage: number
+          percentage?: number | null
           user_id: string
         }
         Update: {
@@ -77,7 +77,7 @@ export type Database = {
           debt_id?: string
           family_id?: string | null
           id?: string
-          percentage?: number
+          percentage?: number | null
           user_id?: string
         }
         Relationships: [
@@ -348,6 +348,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          created_by: string | null
           debt_id: string
           family_id: string | null
           id: string
@@ -359,6 +360,7 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          created_by?: string | null
           debt_id: string
           family_id?: string | null
           id?: string
@@ -370,6 +372,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          created_by?: string | null
           debt_id?: string
           family_id?: string | null
           id?: string
@@ -424,27 +427,39 @@ export type Database = {
           amount: number
           contribution_date: string
           created_at: string
+          created_by: string | null
           family_id: string | null
           goal_id: string
           id: string
+          kind: string
+          notes: string | null
+          proof_url: string | null
           user_id: string
         }
         Insert: {
           amount: number
           contribution_date?: string
           created_at?: string
+          created_by?: string | null
           family_id?: string | null
           goal_id: string
           id?: string
+          kind?: string
+          notes?: string | null
+          proof_url?: string | null
           user_id: string
         }
         Update: {
           amount?: number
           contribution_date?: string
           created_at?: string
+          created_by?: string | null
           family_id?: string | null
           goal_id?: string
           id?: string
+          kind?: string
+          notes?: string | null
+          proof_url?: string | null
           user_id?: string
         }
         Relationships: [
@@ -464,8 +479,48 @@ export type Database = {
           },
         ]
       }
+      savings_goal_members: {
+        Row: {
+          created_at: string
+          family_id: string | null
+          goal_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          family_id?: string | null
+          goal_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string | null
+          goal_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "savings_goal_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "savings_goal_members_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "savings_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       savings_goals: {
         Row: {
+          broken_at: string | null
           created_at: string
           created_by: string
           current_amount: number
@@ -477,6 +532,7 @@ export type Database = {
           target_amount: number
         }
         Insert: {
+          broken_at?: string | null
           created_at?: string
           created_by: string
           current_amount?: number
@@ -488,6 +544,7 @@ export type Database = {
           target_amount: number
         }
         Update: {
+          broken_at?: string | null
           created_at?: string
           created_by?: string
           current_amount?: number

@@ -36,10 +36,14 @@ function Miembros() {
   async function load() {
     if (!familyId) return;
     const [{ data: m }, { data: inv }] = await Promise.all([
-      supabase.from("family_members").select("*, profiles:user_id(id, name, email)").eq("family_id", familyId),
+      supabase.from("family_members").select("*").eq("family_id", familyId).order("created_at"),
       supabase.from("invitations").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
     ]);
-    setMembers(m ?? []);
+    const ids = (m ?? []).map((x: any) => x.user_id);
+    const { data: profs } = ids.length
+      ? await supabase.from("profiles").select("id, name, email").in("id", ids)
+      : { data: [] as any[] };
+    setMembers((m ?? []).map((x: any) => ({ ...x, profiles: (profs ?? []).find((p: any) => p.id === x.user_id) ?? null })));
     setInvites(inv ?? []);
   }
   useEffect(() => { load(); }, [familyId]);
@@ -178,6 +182,9 @@ function Miembros() {
         </CardContent>
       </Card>
 
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">Miembros ({members.length})</h2>
+      </div>
       <div className="grid gap-3">
         {members.map((m) => (
           <Card key={m.id}>

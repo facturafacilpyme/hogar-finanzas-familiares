@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, PiggyBank, TrendingUp, AlertCircle } from "lucide-react";
+import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -13,27 +13,53 @@ export const Route = createFileRoute("/_authenticated/panel")({
 
 function Panel() {
   const { profile, role, familyId, familyName } = useAuth();
-  const [stats, setStats] = useState({ totalDebt: 0, totalSaved: 0, active: 0 });
-  const [upcoming, setUpcoming] = useState<Array<{ id: string; name: string; entity: string; due_date: string }>>([]);
+  const [stats, setStats] = useState({
+    totalDebt: 0, totalSaved: 0, active: 0, gastosMes: 0, gastosTotal: 0, abonosMes: 0, aportesMes: 0,
+  });
+  const [upcoming, setUpcoming] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
       if (!familyId) return;
-      const [{ data: debts }, { data: goals }, { data: pays }] = await Promise.all([
+      const [{ data: debts }, { data: gl }, { data: pays }, { data: exp }, { data: contrib }] = await Promise.all([
         supabase.from("debts").select("*").eq("family_id", familyId),
-        supabase.from("savings_goals").select("current_amount").eq("family_id", familyId),
-        supabase.from("payments").select("debt_id, amount").eq("family_id", familyId),
+        supabase.from("savings_goals").select("*").eq("family_id", familyId),
+        supabase.from("payments").select("amount, payment_date").eq("family_id", familyId),
+        supabase.from("expenses").select("amount, expense_date").eq("family_id", familyId),
+        supabase.from("savings_contributions").select("amount, kind, contribution_date").eq("family_id", familyId),
       ]);
-      const totalDebt = (debts ?? []).reduce((s, d) => s + Number(d.total_amount), 0);
-      const totalPaid = (pays ?? []).reduce((s, p) => s + Number(p.amount), 0);
-      const totalSaved = (goals ?? []).reduce((s, g) => s + Number(g.current_amount), 0);
-      const active = (debts ?? []).filter((d) => d.status !== "pagada").length;
-      setStats({ totalDebt: Math.max(0, totalDebt - totalPaid), totalSaved, active });
+      const now = new Date();
+      const mes = (d?: string | null) =>
+        !!d && new Date(d).getMonth() === now.getMonth() && new Date(d).getFullYear() === now.getFullYear();
+
+      const totalDebt = (debts ?? []).reduce((s, d: any) => s + Number(d.total_amount), 0);
+      const totalPaid = (pays ?? []).reduce((s, p: any) => s + Number(p.amount), 0);
+      const totalSaved = (gl ?? []).reduce((s, g: any) => s + Number(g.current_amount), 0);
+
+      setStats({
+        totalDebt: Math.max(0, totalDebt - totalPaid),
+        totalSaved,
+        active: (debts ?? []).filter((d: any) => d.status !== "pagada").length,
+        gastosMes: (exp ?? []).filter((e: any) => mes(e.expense_date)).reduce((s, e: any) => s + Number(e.amount), 0),
+        gastosTotal: (exp ?? []).reduce((s, e: any) => s + Number(e.amount), 0),
+        abonosMes: (pays ?? []).filter((p: any) => mes(p.payment_date)).reduce((s, p: any) => s + Number(p.amount), 0),
+        aportesMes: (contrib ?? [])
+          .filter((c: any) => mes(c.contribution_date) && c.kind !== "retiro")
+          .reduce((s, c: any) => s + Number(c.amount), 0),
+      });
+
       setUpcoming(
         ((debts ?? []) as any[])
           .filter((d) => d.due_date && d.status !== "pagada")
           .sort((a, b) => a.due_date.localeCompare(b.due_date))
           .slice(0, 5),
+      );
+      setGoals(
+        ((gl ?? []) as any[])
+          .filter((g) => Number(g.current_amount) < Number(g.target_amount))
+          .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))
+          .slice(0, 4),
       );
     })();
   }, [familyId]);
@@ -42,50 +68,91 @@ function Panel() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Hola, {profile?.name} 👋</h1>
-        <p className="text-sm text-muted-foreground">
-          Resumen de {familyName ?? "tu hogar"}.
-        </p>
+        <p className="text-sm text-muted-foreground">Resumen de {familyName ?? "tu hogar"}.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard icon={Wallet} label="Deuda pendiente" value={formatCOP(stats.totalDebt)} tone="primary" />
-        <StatCard icon={PiggyBank} label="Total ahorrado" value={formatCOP(stats.totalSaved)} tone="success" />
+        <StatCard icon={HandCoins} label="Abonos este mes" value={formatCOP(stats.abonosMes)} tone="success" />
         <StatCard icon={TrendingUp} label="Deudas activas" value={String(stats.active)} tone="warning" />
+        <StatCard icon={PiggyBank} label="Total ahorrado" value={formatCOP(stats.totalSaved)} tone="success" />
+        <StatCard icon={Target} label="Aportes este mes" value={formatCOP(stats.aportesMes)} tone="primary" />
+        <StatCard
+          icon={Receipt}
+          label="Gastos este mes"
+          value={formatCOP(stats.gastosMes)}
+          tone="warning"
+          hint={`Histórico: ${formatCOP(stats.gastosTotal)}`}
+        />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <AlertCircle className="h-4 w-4" /> Próximos pagos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {upcoming.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin pagos próximos.</p>
-          ) : (
-            <ul className="divide-y">
-              {upcoming.map((d) => {
-                const days = daysUntil(d.due_date);
-                return (
-                  <li key={d.id} className="flex items-center justify-between py-3">
-                    <div>
-                      <div className="font-medium">{d.name}</div>
-                      <div className="text-xs text-muted-foreground">{d.entity} · {formatDate(d.due_date)}</div>
-                    </div>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      days !== null && days < 0 ? "bg-destructive/15 text-destructive"
-                      : days !== null && days <= 3 ? "bg-warning/30 text-warning-foreground"
-                      : "bg-success/15 text-success"
-                    }`}>
-                      {days !== null && days < 0 ? `En mora ${Math.abs(days)}d` : days === 0 ? "Hoy" : `En ${days}d`}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertCircle className="h-4 w-4" /> Próximos pagos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {upcoming.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin pagos próximos.</p>
+            ) : (
+              <ul className="divide-y">
+                {upcoming.map((d) => {
+                  const days = daysUntil(d.due_date);
+                  return (
+                    <li key={d.id} className="flex items-center justify-between gap-2 py-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{d.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">{d.entity} · {formatDate(d.due_date)}</div>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        days !== null && days < 0 ? "bg-destructive/15 text-destructive"
+                        : days !== null && days <= 3 ? "bg-warning/30 text-warning-foreground"
+                        : "bg-success/15 text-success"
+                      }`}>
+                        {days !== null && days < 0 ? `En mora ${Math.abs(days)}d` : days === 0 ? "Hoy" : `En ${days}d`}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PiggyBank className="h-4 w-4" /> Metas en curso
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {goals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin metas activas.</p>
+            ) : (
+              <ul className="divide-y">
+                {goals.map((g) => {
+                  const pct = Math.min(100, (Number(g.current_amount) / Number(g.target_amount)) * 100);
+                  return (
+                    <li key={g.id} className="py-3">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <Link to="/ahorros" className="min-w-0 truncate font-medium hover:underline">{g.name}</Link>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatCOP(g.current_amount)} / {formatCOP(g.target_amount)}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {role === "invitado" && (
         <div className="rounded-xl border bg-accent/40 p-4 text-sm text-accent-foreground">
@@ -96,7 +163,7 @@ function Panel() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string; tone: "primary" | "success" | "warning" }) {
+function StatCard({ icon: Icon, label, value, tone, hint }: { icon: any; label: string; value: string; tone: "primary" | "success" | "warning"; hint?: string }) {
   const toneMap = {
     primary: "bg-primary/10 text-primary",
     success: "bg-success/15 text-success",
@@ -105,12 +172,13 @@ function StatCard({ icon: Icon, label, value, tone }: { icon: any; label: string
   return (
     <Card>
       <CardContent className="flex items-center gap-4 p-5">
-        <div className={`grid h-11 w-11 place-items-center rounded-xl ${toneMap[tone]}`}>
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${toneMap[tone]}`}>
           <Icon className="h-5 w-5" />
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-          <div className="text-xl font-bold">{value}</div>
+          <div className="truncate text-xl font-bold">{value}</div>
+          {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
         </div>
       </CardContent>
     </Card>

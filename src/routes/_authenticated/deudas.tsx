@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Wallet, Upload } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
+import { uploadProof } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -33,12 +34,16 @@ function Deudas() {
     const [{ data: d }, { data: m }, { data: p }, { data: pay }] = await Promise.all([
       supabase.from("debts").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
       supabase.from("debt_members").select("*").eq("family_id", familyId),
-      supabase.from("family_members").select("profiles:user_id(id, name, email)").eq("family_id", familyId),
+      supabase.from("family_members").select("user_id").eq("family_id", familyId),
       supabase.from("payments").select("*").eq("family_id", familyId),
     ]);
     setDebts(d ?? []);
     setMembers(m ?? []);
-    setProfiles((p ?? []).map((x: any) => x.profiles).filter(Boolean));
+    const ids = (p ?? []).map((x: any) => x.user_id);
+    const { data: profs } = ids.length
+      ? await supabase.from("profiles").select("id, name, email").in("id", ids)
+      : { data: [] as any[] };
+    setProfiles(profs ?? []);
     setPayments(pay ?? []);
   }
   useEffect(() => { load(); }, [familyId]);
@@ -139,7 +144,7 @@ function DebtCard({ debt, members, profiles, payments, onChange, canPay, isAdmin
               const p = profiles.find((pr: any) => pr.id === m.user_id);
               return (
                 <Badge key={m.id} variant="secondary" className="font-normal">
-                  {p?.name ?? "?"} · {m.percentage}% · {formatCOP(m.amount_assigned)}
+                  {p?.name ?? "?"} · {m.percentage != null ? `${Number(m.percentage)}% · ` : ""}{formatCOP(m.amount_assigned)}
                 </Badge>
               );
             })}
@@ -154,7 +159,7 @@ function DebtCard({ debt, members, profiles, payments, onChange, canPay, isAdmin
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">Registrar abono</Button>
                 </DialogTrigger>
-                <PaymentDialog debt={debt} onDone={() => { setOpenPay(false); onChange(); }} />
+                <PaymentDialog debt={debt} profiles={profiles} onDone={() => { setOpenPay(false); onChange(); }} />
               </Dialog>
             )}
             {isAdmin && (
@@ -174,6 +179,7 @@ function DebtCard({ debt, members, profiles, payments, onChange, canPay, isAdmin
 
 function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
   const [type, setType] = useState<"unico" | "cuotas">("unico");
+  const [split, setSplit] = useState<"porcentaje" | "fijo">("porcentaje");
   const [total, setTotal] = useState("");
   const [assign, setAssign] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -182,9 +188,14 @@ function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const totalN = Number(fd.get("total_amount"));
-    const totalPct = Object.values(assign).reduce((s, v) => s + Number(v || 0), 0);
-    if (Math.abs(totalPct - 100) > 0.1) {
-      toast.error(`Los porcentajes deben sumar 100% (van ${totalPct}%)`);
+    const suma = Object.values(assign).reduce((s, v) => s + Number(v || 0), 0);
+    if (split === "porcentaje") {
+      if (suma > 0 && Math.abs(suma - 100) > 0.1) {
+        toast.error(`Los porcentajes deben sumar 100% (van ${suma}%)`);
+        return;
+      }
+    } else if (suma - totalN > 0.5) {
+      toast.error("La suma de los valores asignados supera el total de la deuda");
       return;
     }
     setLoading(true);
@@ -205,11 +216,11 @@ function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
     if (error) { toast.error(error.message); setLoading(false); return; }
     const rows = Object.entries(assign)
       .filter(([, v]) => Number(v) > 0)
-      .map(([uid, pct]) => ({
+      .map(([uid, v]) => ({
         debt_id: d.id,
         user_id: uid,
-        percentage: Number(pct),
-        amount_assigned: (Number(pct) / 100) * totalN,
+        percentage: split === "porcentaje" ? Number(v) : totalN ? (Number(v) / totalN) * 100 : null,
+        amount_assigned: split === "porcentaje" ? (Number(v) / 100) * totalN : Number(v),
       }));
     if (rows.length) await supabase.from("debt_members").insert(rows);
     toast.success("Deuda creada");
@@ -241,29 +252,42 @@ function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
         <div><Label>Notas</Label><Textarea name="notes" /></div>
 
         <div className="rounded-lg border p-3">
-          <Label className="mb-2 block">Responsables (%)</Label>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <Label>Responsables</Label>
+            <Select value={split} onValueChange={(v) => { setSplit(v as any); setAssign({}); }}>
+              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="porcentaje">Por porcentaje</SelectItem>
+                <SelectItem value="fijo">Por valor fijo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             {profiles.map((p: any) => (
               <div key={p.id} className="flex items-center gap-2">
-                <span className="flex-1 text-sm">{p.name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
                 <Input
                   type="number"
                   min="0"
-                  max="100"
+                  max={split === "porcentaje" ? "100" : undefined}
                   step="0.01"
-                  className="w-24"
+                  className="w-28"
                   placeholder="0"
                   value={assign[p.id] ?? ""}
                   onChange={(e) => setAssign((s) => ({ ...s, [p.id]: e.target.value }))}
                 />
-                <span className="w-24 text-right text-xs text-muted-foreground">
-                  {total ? formatCOP((Number(assign[p.id] || 0) / 100) * Number(total)) : "$0"}
+                <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                  {split === "porcentaje"
+                    ? (total ? formatCOP((Number(assign[p.id] || 0) / 100) * Number(total)) : "$0")
+                    : (total ? `${(((Number(assign[p.id] || 0)) / Number(total)) * 100 || 0).toFixed(1)}%` : "0%")}
                 </span>
               </div>
             ))}
           </div>
           <div className="mt-2 text-right text-xs text-muted-foreground">
-            Suma: {Object.values(assign).reduce((s, v) => s + Number(v || 0), 0)}%
+            Suma: {split === "porcentaje"
+              ? `${Object.values(assign).reduce((s, v) => s + Number(v || 0), 0)}%`
+              : formatCOP(Object.values(assign).reduce((s, v) => s + Number(v || 0), 0))}
           </div>
         </div>
 
@@ -275,25 +299,28 @@ function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
   );
 }
 
-function PaymentDialog({ debt, onDone }: any) {
+function PaymentDialog({ debt, profiles, onDone }: any) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [target, setTarget] = useState<string>(user!.id);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     let proof_url: string | null = null;
-    if (file) {
-      const path = `${user!.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("comprobantes").upload(path, file);
-      if (upErr) { toast.error(upErr.message); setLoading(false); return; }
-      proof_url = path;
+    try {
+      proof_url = await uploadProof(user!.id, file);
+    } catch (err: any) {
+      toast.error(err.message ?? "No se pudo subir el comprobante");
+      setLoading(false);
+      return;
     }
     const { error } = await supabase.from("payments").insert({
       debt_id: debt.id,
-      user_id: user!.id,
+      user_id: target,
+      created_by: user!.id,
       amount: Number(fd.get("amount")),
       payment_date: String(fd.get("payment_date")),
       proof_url,
@@ -310,6 +337,18 @@ function PaymentDialog({ debt, onDone }: any) {
       <DialogHeader><DialogTitle>Registrar abono — {debt.name}</DialogTitle></DialogHeader>
       <form onSubmit={submit} className="space-y-3">
         <div><Label>Monto</Label><Input name="amount" type="number" step="0.01" required /></div>
+        <div>
+          <Label>Abono a nombre de</Label>
+          <Select value={target} onValueChange={setTarget}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(profiles ?? []).map((p: any) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">El monto se suma al seguimiento de esta persona.</p>
+        </div>
         <div><Label>Fecha</Label><Input name="payment_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
         <div>
           <Label>Comprobante (foto)</Label>

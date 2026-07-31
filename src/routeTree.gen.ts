@@ -21,6 +21,7 @@ import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCajaMenorRouteImport } from './routes/_authenticated/caja-menor'
 import { Route as AuthenticatedAhorrosRouteImport } from './routes/_authenticated/ahorros'
+import { Route as AuthenticatedAbonosRouteImport } from './routes/_authenticated/abonos'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -81,10 +82,16 @@ const AuthenticatedAhorrosRoute = AuthenticatedAhorrosRouteImport.update({
   path: '/ahorros',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAbonosRoute = AuthenticatedAbonosRouteImport.update({
+  id: '/abonos',
+  path: '/abonos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/abonos': typeof AuthenticatedAbonosRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/abonos': typeof AuthenticatedAbonosRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/abonos': typeof AuthenticatedAbonosRoute
   '/_authenticated/ahorros': typeof AuthenticatedAhorrosRoute
   '/_authenticated/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/abonos'
     | '/ahorros'
     | '/caja-menor'
     | '/calendario'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/abonos'
     | '/ahorros'
     | '/caja-menor'
     | '/calendario'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/abonos'
     | '/_authenticated/ahorros'
     | '/_authenticated/caja-menor'
     | '/_authenticated/calendario'
@@ -259,10 +271,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAhorrosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abonos': {
+      id: '/_authenticated/abonos'
+      path: '/abonos'
+      fullPath: '/abonos'
+      preLoaderRoute: typeof AuthenticatedAbonosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAbonosRoute: typeof AuthenticatedAbonosRoute
   AuthenticatedAhorrosRoute: typeof AuthenticatedAhorrosRoute
   AuthenticatedCajaMenorRoute: typeof AuthenticatedCajaMenorRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
@@ -274,6 +294,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAbonosRoute: AuthenticatedAbonosRoute,
   AuthenticatedAhorrosRoute: AuthenticatedAhorrosRoute,
   AuthenticatedCajaMenorRoute: AuthenticatedCajaMenorRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
@@ -296,13 +317,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
