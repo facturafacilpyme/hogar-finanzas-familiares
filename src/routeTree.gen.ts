@@ -13,7 +13,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InvitacionTokenRouteImport } from './routes/invitacion.$token'
-import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated/reportes'
 import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/panel'
 import { Route as AuthenticatedMiembrosRouteImport } from './routes/_authenticated/miembros'
 import { Route as AuthenticatedHistorialRouteImport } from './routes/_authenticated/historial'
@@ -21,6 +20,7 @@ import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCajaMenorRouteImport } from './routes/_authenticated/caja-menor'
 import { Route as AuthenticatedAhorrosRouteImport } from './routes/_authenticated/ahorros'
+import { Route as AuthenticatedAbonosRouteImport } from './routes/_authenticated/abonos'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -40,11 +40,6 @@ const InvitacionTokenRoute = InvitacionTokenRouteImport.update({
   id: '/invitacion/$token',
   path: '/invitacion/$token',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedReportesRoute = AuthenticatedReportesRouteImport.update({
-  id: '/reportes',
-  path: '/reportes',
-  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPanelRoute = AuthenticatedPanelRouteImport.update({
   id: '/panel',
@@ -81,10 +76,16 @@ const AuthenticatedAhorrosRoute = AuthenticatedAhorrosRouteImport.update({
   path: '/ahorros',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAbonosRoute = AuthenticatedAbonosRouteImport.update({
+  id: '/abonos',
+  path: '/abonos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/abonos': typeof AuthenticatedAbonosRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
@@ -92,12 +93,12 @@ export interface FileRoutesByFullPath {
   '/historial': typeof AuthenticatedHistorialRoute
   '/miembros': typeof AuthenticatedMiembrosRoute
   '/panel': typeof AuthenticatedPanelRoute
-  '/reportes': typeof AuthenticatedReportesRoute
   '/invitacion/$token': typeof InvitacionTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/abonos': typeof AuthenticatedAbonosRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
@@ -105,7 +106,6 @@ export interface FileRoutesByTo {
   '/historial': typeof AuthenticatedHistorialRoute
   '/miembros': typeof AuthenticatedMiembrosRoute
   '/panel': typeof AuthenticatedPanelRoute
-  '/reportes': typeof AuthenticatedReportesRoute
   '/invitacion/$token': typeof InvitacionTokenRoute
 }
 export interface FileRoutesById {
@@ -113,6 +113,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/abonos': typeof AuthenticatedAbonosRoute
   '/_authenticated/ahorros': typeof AuthenticatedAhorrosRoute
   '/_authenticated/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
@@ -120,7 +121,6 @@ export interface FileRoutesById {
   '/_authenticated/historial': typeof AuthenticatedHistorialRoute
   '/_authenticated/miembros': typeof AuthenticatedMiembrosRoute
   '/_authenticated/panel': typeof AuthenticatedPanelRoute
-  '/_authenticated/reportes': typeof AuthenticatedReportesRoute
   '/invitacion/$token': typeof InvitacionTokenRoute
 }
 export interface FileRouteTypes {
@@ -128,6 +128,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/abonos'
     | '/ahorros'
     | '/caja-menor'
     | '/calendario'
@@ -135,12 +136,12 @@ export interface FileRouteTypes {
     | '/historial'
     | '/miembros'
     | '/panel'
-    | '/reportes'
     | '/invitacion/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/abonos'
     | '/ahorros'
     | '/caja-menor'
     | '/calendario'
@@ -148,13 +149,13 @@ export interface FileRouteTypes {
     | '/historial'
     | '/miembros'
     | '/panel'
-    | '/reportes'
     | '/invitacion/$token'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/abonos'
     | '/_authenticated/ahorros'
     | '/_authenticated/caja-menor'
     | '/_authenticated/calendario'
@@ -162,7 +163,6 @@ export interface FileRouteTypes {
     | '/_authenticated/historial'
     | '/_authenticated/miembros'
     | '/_authenticated/panel'
-    | '/_authenticated/reportes'
     | '/invitacion/$token'
   fileRoutesById: FileRoutesById
 }
@@ -202,13 +202,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/invitacion/$token'
       preLoaderRoute: typeof InvitacionTokenRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/reportes': {
-      id: '/_authenticated/reportes'
-      path: '/reportes'
-      fullPath: '/reportes'
-      preLoaderRoute: typeof AuthenticatedReportesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/panel': {
       id: '/_authenticated/panel'
@@ -259,10 +252,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAhorrosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/abonos': {
+      id: '/_authenticated/abonos'
+      path: '/abonos'
+      fullPath: '/abonos'
+      preLoaderRoute: typeof AuthenticatedAbonosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAbonosRoute: typeof AuthenticatedAbonosRoute
   AuthenticatedAhorrosRoute: typeof AuthenticatedAhorrosRoute
   AuthenticatedCajaMenorRoute: typeof AuthenticatedCajaMenorRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
@@ -270,10 +271,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistorialRoute: typeof AuthenticatedHistorialRoute
   AuthenticatedMiembrosRoute: typeof AuthenticatedMiembrosRoute
   AuthenticatedPanelRoute: typeof AuthenticatedPanelRoute
-  AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAbonosRoute: AuthenticatedAbonosRoute,
   AuthenticatedAhorrosRoute: AuthenticatedAhorrosRoute,
   AuthenticatedCajaMenorRoute: AuthenticatedCajaMenorRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
@@ -281,7 +282,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistorialRoute: AuthenticatedHistorialRoute,
   AuthenticatedMiembrosRoute: AuthenticatedMiembrosRoute,
   AuthenticatedPanelRoute: AuthenticatedPanelRoute,
-  AuthenticatedReportesRoute: AuthenticatedReportesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -296,13 +296,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
