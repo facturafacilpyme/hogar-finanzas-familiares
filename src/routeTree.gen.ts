@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -18,11 +19,17 @@ import { Route as AuthenticatedPanelRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMiembrosRouteImport } from './routes/_authenticated/miembros'
 import { Route as AuthenticatedHistorialRouteImport } from './routes/_authenticated/historial'
 import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated/deudas'
+import { Route as AuthenticatedCuentaRouteImport } from './routes/_authenticated/cuenta'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedCajaMenorRouteImport } from './routes/_authenticated/caja-menor'
 import { Route as AuthenticatedAhorrosRouteImport } from './routes/_authenticated/ahorros'
 import { Route as AuthenticatedAbonosRouteImport } from './routes/_authenticated/abonos'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -67,6 +74,11 @@ const AuthenticatedDeudasRoute = AuthenticatedDeudasRouteImport.update({
   path: '/deudas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCuentaRoute = AuthenticatedCuentaRouteImport.update({
+  id: '/cuenta',
+  path: '/cuenta',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
   id: '/calendario',
   path: '/calendario',
@@ -91,10 +103,12 @@ const AuthenticatedAbonosRoute = AuthenticatedAbonosRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/abonos': typeof AuthenticatedAbonosRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/cuenta': typeof AuthenticatedCuentaRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/historial': typeof AuthenticatedHistorialRoute
   '/miembros': typeof AuthenticatedMiembrosRoute
@@ -105,10 +119,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/abonos': typeof AuthenticatedAbonosRoute
   '/ahorros': typeof AuthenticatedAhorrosRoute
   '/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/calendario': typeof AuthenticatedCalendarioRoute
+  '/cuenta': typeof AuthenticatedCuentaRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/historial': typeof AuthenticatedHistorialRoute
   '/miembros': typeof AuthenticatedMiembrosRoute
@@ -121,10 +137,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/abonos': typeof AuthenticatedAbonosRoute
   '/_authenticated/ahorros': typeof AuthenticatedAhorrosRoute
   '/_authenticated/caja-menor': typeof AuthenticatedCajaMenorRoute
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
+  '/_authenticated/cuenta': typeof AuthenticatedCuentaRoute
   '/_authenticated/deudas': typeof AuthenticatedDeudasRoute
   '/_authenticated/historial': typeof AuthenticatedHistorialRoute
   '/_authenticated/miembros': typeof AuthenticatedMiembrosRoute
@@ -137,10 +155,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/reset-password'
     | '/abonos'
     | '/ahorros'
     | '/caja-menor'
     | '/calendario'
+    | '/cuenta'
     | '/deudas'
     | '/historial'
     | '/miembros'
@@ -151,10 +171,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/reset-password'
     | '/abonos'
     | '/ahorros'
     | '/caja-menor'
     | '/calendario'
+    | '/cuenta'
     | '/deudas'
     | '/historial'
     | '/miembros'
@@ -166,10 +188,12 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/reset-password'
     | '/_authenticated/abonos'
     | '/_authenticated/ahorros'
     | '/_authenticated/caja-menor'
     | '/_authenticated/calendario'
+    | '/_authenticated/cuenta'
     | '/_authenticated/deudas'
     | '/_authenticated/historial'
     | '/_authenticated/miembros'
@@ -182,11 +206,19 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   InvitacionTokenRoute: typeof InvitacionTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -250,6 +282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeudasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/cuenta': {
+      id: '/_authenticated/cuenta'
+      path: '/cuenta'
+      fullPath: '/cuenta'
+      preLoaderRoute: typeof AuthenticatedCuentaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/calendario': {
       id: '/_authenticated/calendario'
       path: '/calendario'
@@ -286,6 +325,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAhorrosRoute: typeof AuthenticatedAhorrosRoute
   AuthenticatedCajaMenorRoute: typeof AuthenticatedCajaMenorRoute
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
+  AuthenticatedCuentaRoute: typeof AuthenticatedCuentaRoute
   AuthenticatedDeudasRoute: typeof AuthenticatedDeudasRoute
   AuthenticatedHistorialRoute: typeof AuthenticatedHistorialRoute
   AuthenticatedMiembrosRoute: typeof AuthenticatedMiembrosRoute
@@ -298,6 +338,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAhorrosRoute: AuthenticatedAhorrosRoute,
   AuthenticatedCajaMenorRoute: AuthenticatedCajaMenorRoute,
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
+  AuthenticatedCuentaRoute: AuthenticatedCuentaRoute,
   AuthenticatedDeudasRoute: AuthenticatedDeudasRoute,
   AuthenticatedHistorialRoute: AuthenticatedHistorialRoute,
   AuthenticatedMiembrosRoute: AuthenticatedMiembrosRoute,
@@ -312,6 +353,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   InvitacionTokenRoute: InvitacionTokenRoute,
 }
 export const routeTree = rootRouteImport

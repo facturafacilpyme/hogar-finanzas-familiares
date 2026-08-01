@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/useAuth";
+import { registerPWA } from "@/lib/pwa";
 
 function NotFoundComponent() {
   return (
@@ -89,12 +90,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/mull5ed3x6cp8iMWv2dbq3cC7Kw2/social-images/social-1785446724992-104429.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/mull5ed3x6cp8iMWv2dbq3cC7Kw2/social-images/social-1785446724992-104429.webp" },
+      { name: "theme-color", content: "#1f9d6b" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-title", content: "HogarFin" },
+      { name: "mobile-web-app-capable", content: "yes" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
@@ -125,6 +134,10 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    registerPWA();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
