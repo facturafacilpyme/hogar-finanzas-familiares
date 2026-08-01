@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Receipt } from "lucide-react";
+import { Plus, Receipt, Pencil, Trash2 } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/caja-menor")({
   component: CajaMenor,
 });
 
-const CATEGORIAS = ["alimentacion", "transporte", "servicios", "salud", "educacion", "entretenimiento", "otros"] as const;
+const CATEGORIAS = ["mercado", "transporte", "servicios", "salud", "otros"] as const;
 
 function CajaMenor() {
   const { user, role, familyId } = useAuth();
@@ -25,7 +25,8 @@ function CajaMenor() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
   const [filter, setFilter] = useState<string>("todos");
-  const [cat, setCat] = useState<string>("alimentacion");
+  const [cat, setCat] = useState<string>("mercado");
+  const [editing, setEditing] = useState<any>(null);
 
   async function load() {
     if (!familyId) return;
@@ -50,10 +51,19 @@ function CajaMenor() {
   }, [expenses]);
 
   const canWrite = role !== "invitado";
+  const isAdmin = role === "admin";
+
+  async function removeExpense(id: string) {
+    if (!confirm("¿Eliminar este gasto?")) return;
+    const { error } = await supabase.from("expenses").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Gasto eliminado");
+    load();
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Caja Menor</h1>
           <p className="text-sm text-muted-foreground">Gastos cotidianos del hogar.</p>
@@ -101,6 +111,48 @@ function CajaMenor() {
         )}
       </div>
 
+      {editing && (
+        <Dialog open onOpenChange={(o) => !o && setEditing(null)}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Editar gasto</DialogTitle></DialogHeader>
+            <form
+              className="space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const { error } = await supabase
+                  .from("expenses")
+                  .update({
+                    amount: Number(fd.get("amount")),
+                    category: editing.category as any,
+                    description: String(fd.get("description") || "") || null,
+                    expense_date: String(fd.get("expense_date")),
+                  })
+                  .eq("id", editing.id);
+                if (error) return toast.error(error.message);
+                toast.success("Gasto actualizado");
+                setEditing(null);
+                load();
+              }}
+            >
+              <div><Label>Monto</Label><Input name="amount" type="number" step="0.01" defaultValue={editing.amount} required /></div>
+              <div>
+                <Label>Categoría</Label>
+                <Select value={editing.category} onValueChange={(v) => setEditing((s: any) => ({ ...s, category: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Fecha</Label><Input name="expense_date" type="date" defaultValue={editing.expense_date} required /></div>
+              <div><Label>Descripción</Label><Input name="description" defaultValue={editing.description ?? ""} /></div>
+              <DialogFooter><Button type="submit">Guardar cambios</Button></DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
       <Card>
         <CardContent className="flex items-center justify-between p-5">
           <div>
@@ -130,14 +182,26 @@ function CajaMenor() {
               {filtered.map((x) => {
                 const p = profiles.find((pr) => pr.id === x.paid_by);
                 return (
-                  <li key={x.id} className="flex items-center justify-between p-4">
-                    <div>
+                  <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
+                    <div className="min-w-0">
                       <div className="font-medium capitalize">{x.category}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="break-words text-xs text-muted-foreground">
                         {x.description || "—"} · {p?.name ?? "?"} · {formatDate(x.expense_date)}
                       </div>
                     </div>
-                    <div className="font-bold">{formatCOP(x.amount)}</div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold">{formatCOP(x.amount)}</span>
+                      {isAdmin && (
+                        <>
+                          <Button size="sm" variant="ghost" onClick={() => setEditing(x)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => removeExpense(x.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </li>
                 );
               })}
