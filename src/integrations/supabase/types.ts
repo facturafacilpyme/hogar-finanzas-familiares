@@ -111,6 +111,9 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          settled_at: string | null
+          settled_by: string | null
+          settlement_proof_url: string | null
           status: Database["public"]["Enums"]["debt_status"]
           total_amount: number
           total_cuotas: number | null
@@ -129,6 +132,9 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          settled_at?: string | null
+          settled_by?: string | null
+          settlement_proof_url?: string | null
           status?: Database["public"]["Enums"]["debt_status"]
           total_amount: number
           total_cuotas?: number | null
@@ -147,6 +153,9 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          settled_at?: string | null
+          settled_by?: string | null
+          settlement_proof_url?: string | null
           status?: Database["public"]["Enums"]["debt_status"]
           total_amount?: number
           total_cuotas?: number | null
@@ -265,9 +274,11 @@ export type Database = {
           accepted_by: string | null
           created_at: string
           created_by: string
+          email: string | null
           expires_at: string
           family_id: string
           id: string
+          name: string | null
           role: Database["public"]["Enums"]["app_role"]
           token: string
         }
@@ -276,9 +287,11 @@ export type Database = {
           accepted_by?: string | null
           created_at?: string
           created_by: string
+          email?: string | null
           expires_at?: string
           family_id: string
           id?: string
+          name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
         }
@@ -287,9 +300,11 @@ export type Database = {
           accepted_by?: string | null
           created_at?: string
           created_by?: string
+          email?: string | null
           expires_at?: string
           family_id?: string
           id?: string
+          name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
         }
@@ -578,6 +593,16 @@ export type Database = {
         Args: { _family_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      invitation_info: {
+        Args: { _token: string }
+        Returns: {
+          email: string
+          family_name: string
+          name: string
+          role: Database["public"]["Enums"]["app_role"]
+          valid: boolean
+        }[]
+      }
       is_family_admin: {
         Args: { _family_id: string; _user_id: string }
         Returns: boolean
@@ -589,8 +614,8 @@ export type Database = {
       redeem_invitation: {
         Args: { _token: string }
         Returns: {
-          family_id: string
-          role: Database["public"]["Enums"]["app_role"]
+          out_family_id: string
+          out_role: Database["public"]["Enums"]["app_role"]
         }[]
       }
     }
@@ -610,6 +635,7 @@ export type Database = {
         | "en_mora"
         | "abono_registrado"
         | "meta_completada"
+        | "pago_total_pendiente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -753,6 +779,7 @@ export const Constants = {
         "en_mora",
         "abono_registrado",
         "meta_completada",
+        "pago_total_pendiente",
       ],
     },
   },

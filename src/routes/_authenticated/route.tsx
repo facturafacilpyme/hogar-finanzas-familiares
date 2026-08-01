@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -25,6 +26,7 @@ import {
   Users,
   LogOut,
   HandCoins,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -46,10 +48,28 @@ const items = [
   { title: "Historial", to: "/historial", icon: History },
 ] as const;
 
+function NavLinks({ items }: { items: readonly { title: string; to: string; icon: any }[] }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { setOpenMobile, isMobile } = useSidebar();
+  return (
+    <SidebarMenu>
+      {items.map((it) => (
+        <SidebarMenuItem key={it.to}>
+          <SidebarMenuButton asChild isActive={pathname === it.to}>
+            <Link to={it.to} onClick={() => isMobile && setOpenMobile(false)}>
+              <it.icon />
+              <span>{it.title}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  );
+}
+
 function AuthedLayout() {
   const { user, loading, profile, role, signOut, memberships, familyId, familyName, setFamilyId } = useAuth();
   const nav = useNavigate();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth" });
@@ -59,9 +79,11 @@ function AuthedLayout() {
     return <div className="grid min-h-screen place-items-center text-muted-foreground">Cargando…</div>;
   }
 
-  const allItems = role === "admin"
-    ? [...items, { title: "Mi familia", to: "/miembros" as const, icon: Users }]
-    : items;
+  const allItems = [
+    ...items,
+    ...(role === "admin" ? [{ title: "Mi familia", to: "/miembros", icon: Users }] : []),
+    { title: "Mi cuenta", to: "/cuenta", icon: UserCog },
+  ];
 
   async function handleSignOut() {
     await signOut();
@@ -70,7 +92,7 @@ function AuthedLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full overflow-x-hidden">
         <Sidebar collapsible="icon">
           <SidebarHeader>
             <div className="flex items-center gap-2 px-2 py-2">
@@ -88,18 +110,7 @@ function AuthedLayout() {
             <SidebarGroup>
               <SidebarGroupLabel>Menú</SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu>
-                  {allItems.map((it) => (
-                    <SidebarMenuItem key={it.to}>
-                      <SidebarMenuButton asChild isActive={pathname === it.to}>
-                        <Link to={it.to}>
-                          <it.icon />
-                          <span>{it.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
+                <NavLinks items={allItems} />
               </SidebarGroupContent>
             </SidebarGroup>
             <SidebarGroup>
@@ -117,13 +128,13 @@ function AuthedLayout() {
           </SidebarContent>
         </Sidebar>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b bg-background/95 px-3 backdrop-blur">
-            <div className="flex items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
+          <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background/95 px-2 backdrop-blur sm:px-3">
+            <div className="flex min-w-0 items-center gap-2">
               <SidebarTrigger />
               {memberships.length > 1 ? (
                 <Select value={familyId ?? undefined} onValueChange={setFamilyId}>
-                  <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue placeholder="Familia" /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-[110px] text-xs sm:w-[150px]"><SelectValue placeholder="Familia" /></SelectTrigger>
                   <SelectContent>
                     {memberships.map((m) => (
                       <SelectItem key={m.family_id} value={m.family_id}>{m.family_name}</SelectItem>
@@ -131,9 +142,9 @@ function AuthedLayout() {
                   </SelectContent>
                 </Select>
               ) : (
-                familyName && <span className="max-w-[140px] truncate text-xs font-medium">{familyName}</span>
+                familyName && <span className="max-w-[100px] truncate text-xs font-medium sm:max-w-[160px]">{familyName}</span>
               )}
-              <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold capitalize text-accent-foreground">
+              <span className="hidden rounded-full bg-accent px-2 py-0.5 text-xs font-semibold capitalize text-accent-foreground sm:inline">
                 {role}
               </span>
             </div>
@@ -144,8 +155,10 @@ function AuthedLayout() {
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6">
-            <Outlet />
+          <main className="w-full min-w-0 flex-1 overflow-x-hidden p-3 sm:p-4 md:p-6">
+            <div className="mx-auto w-full min-w-0 max-w-6xl">
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>

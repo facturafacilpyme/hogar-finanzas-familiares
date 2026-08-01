@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/auth")({
@@ -19,6 +18,7 @@ function Auth() {
   const nav = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [forgot, setForgot] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -62,16 +62,32 @@ function Auth() {
     });
     setLoading(false);
     if (error) toast.error(error.message);
-    else toast.success("Cuenta creada. Ya puedes entrar.");
+    else {
+      toast.success("Cuenta creada. ¡Bienvenido!");
+      nav({ to: "/panel" });
+    }
+  }
+
+  async function sendReset(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const fd = new FormData(e.currentTarget);
+    const { error } = await supabase.auth.resetPasswordForEmail(String(fd.get("email")), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Te enviamos un correo para restablecer tu contraseña.");
+      setForgot(false);
+    }
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <Wallet className="h-5 w-5" />
-          </div>
+          <img src="/favicon.ico" alt="Logo de HogarFin" className="h-9 w-9 rounded-xl object-cover" />
           <span className="font-display text-xl font-bold">HogarFin</span>
         </Link>
         <Card>
@@ -80,6 +96,20 @@ function Auth() {
             <CardDescription>Organiza las finanzas de tu familia.</CardDescription>
           </CardHeader>
           <CardContent>
+            {forgot ? (
+              <form onSubmit={sendReset} className="space-y-3">
+                <div>
+                  <Label htmlFor="fp-email">Correo de tu cuenta</Label>
+                  <Input id="fp-email" name="email" type="email" required autoComplete="email" />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Enviando…" : "Enviar link de recuperación"}
+                </Button>
+                <Button type="button" variant="ghost" className="w-full" onClick={() => setForgot(false)}>
+                  Volver
+                </Button>
+              </form>
+            ) : (
             <Tabs defaultValue="signin">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Entrar</TabsTrigger>
@@ -98,6 +128,9 @@ function Auth() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Entrando…" : "Entrar"}
                   </Button>
+                  <Button type="button" variant="link" className="w-full" onClick={() => setForgot(true)}>
+                    ¿Olvidaste tu contraseña?
+                  </Button>
                 </form>
               </TabsContent>
               <TabsContent value="signup">
@@ -109,11 +142,12 @@ function Auth() {
                     {loading ? "Creando…" : "Crear cuenta"}
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">
-                    El primer usuario será administrador de la familia.
+                    Al registrarte se crea tu propia familia y quedas como administrador.
                   </p>
                 </form>
               </TabsContent>
             </Tabs>
+            )}
           </CardContent>
         </Card>
       </div>

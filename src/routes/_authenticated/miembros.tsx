@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/currency";
+import { useServerFn } from "@tanstack/react-start";
+import { purgeFamilyMember } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/miembros")({
   head: () => ({ meta: [{ title: "Miembros — HogarFin" }, { name: "description", content: "Gestión de miembros de tu familia." }] }),
@@ -26,6 +28,9 @@ function Miembros() {
   const [creating, setCreating] = useState(false);
   const [inviteRole, setInviteRole] = useState<string>("invitado");
   const [name, setName] = useState("");
+  const [invName, setInvName] = useState("");
+  const [invEmail, setInvEmail] = useState("");
+  const purge = useServerFn(purgeFamilyMember);
 
   useEffect(() => {
     if (role !== null && role !== "admin") nav({ to: "/panel" });
@@ -56,11 +61,16 @@ function Miembros() {
     refresh();
   }
 
-  async function removeMember(memberId: string) {
-    const { error } = await supabase.from("family_members").delete().eq("id", memberId);
-    if (error) return toast.error(error.message);
-    toast.success("Miembro removido de la familia");
-    load();
+  async function removeMember(m: any) {
+    if (!familyId) return;
+    if (!confirm(`¿Eliminar a ${m.profiles?.name ?? "este miembro"} de la familia? Su cuenta se borra por completo y podrá registrarse de nuevo.`)) return;
+    try {
+      await purge({ data: { familyId, userId: m.user_id } });
+      toast.success("Miembro eliminado por completo");
+      load();
+    } catch (err: any) {
+      toast.error(err?.message ?? "No se pudo eliminar");
+    }
   }
 
   async function renameFamily(e: React.FormEvent) {
@@ -81,13 +91,21 @@ function Miembros() {
     setCreating(true);
     const { data, error } = await supabase
       .from("invitations")
-      .insert({ created_by: user.id, family_id: familyId, role: inviteRole as any })
+      .insert({
+        created_by: user.id,
+        family_id: familyId,
+        role: inviteRole as any,
+        email: invEmail.trim().toLowerCase() || null,
+        name: invName.trim() || null,
+      })
       .select()
       .single();
     setCreating(false);
     if (error) return toast.error(error.message);
     await navigator.clipboard.writeText(inviteUrl(data.token)).catch(() => {});
     toast.success("Link creado y copiado al portapapeles");
+    setInvName("");
+    setInvEmail("");
     load();
   }
 
@@ -126,24 +144,34 @@ function Miembros() {
 
       <Card>
         <CardContent className="space-y-4 p-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-[200px] flex-1">
-              <div className="font-semibold">Invitar a tu familia</div>
-              <p className="text-xs text-muted-foreground">
-                Link de un solo uso, válido por 7 días. Quien lo abra se une <strong>solo a esta familia</strong>.
-              </p>
+          <div>
+            <div className="font-semibold">Invitar a tu familia</div>
+            <p className="text-xs text-muted-foreground">
+              Escribe el nombre y el correo de la persona: al abrir el link solo tendrá que crear su contraseña y
+              entrará directo a <strong>esta familia</strong> con el rol que elijas. Si dejas el correo vacío, se genera
+              un link abierto. Un solo uso, válido 7 días.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <Label className="text-xs">Nombre</Label>
+              <Input value={invName} onChange={(e) => setInvName(e.target.value)} placeholder="Ana Pérez" />
             </div>
-            <div className="flex items-end gap-2">
-              <div>
-                <Label className="text-xs">Rol</Label>
-                <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((x) => <SelectItem key={x} value={x} className="capitalize">{x}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={createInvite} disabled={creating}>
+            <div>
+              <Label className="text-xs">Correo (opcional)</Label>
+              <Input value={invEmail} onChange={(e) => setInvEmail(e.target.value)} type="email" placeholder="ana@correo.com" />
+            </div>
+            <div>
+              <Label className="text-xs">Rol</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((x) => <SelectItem key={x} value={x} className="capitalize">{x}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button className="w-full" onClick={createInvite} disabled={creating}>
                 <Link2 className="mr-2 h-4 w-4" />
                 {creating ? "Generando…" : "Generar link"}
               </Button>
@@ -159,9 +187,9 @@ function Miembros() {
                 return (
                   <div key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-mono text-xs">{inviteUrl(i.token)}</div>
+                      <div className="break-all font-mono text-[11px]">{inviteUrl(i.token)}</div>
                       <div className="text-xs text-muted-foreground">
-                        {state} · rol {i.role} · expira {formatDate(i.expires_at)}
+                        {i.name ? `${i.name} · ` : ""}{i.email ? `${i.email} · ` : ""}{state} · rol {i.role} · expira {formatDate(i.expires_at)}
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -206,7 +234,7 @@ function Miembros() {
                   </SelectContent>
                 </Select>
                 {m.user_id !== user?.id && (
-                  <Button size="sm" variant="ghost" onClick={() => removeMember(m.id)}>
+                  <Button size="sm" variant="ghost" onClick={() => removeMember(m)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
