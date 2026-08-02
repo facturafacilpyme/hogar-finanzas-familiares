@@ -113,6 +113,7 @@ export type Database = {
           notes: string | null
           settled_at: string | null
           settled_by: string | null
+          settlement_due_at: string | null
           settlement_proof_url: string | null
           status: Database["public"]["Enums"]["debt_status"]
           total_amount: number
@@ -134,6 +135,7 @@ export type Database = {
           notes?: string | null
           settled_at?: string | null
           settled_by?: string | null
+          settlement_due_at?: string | null
           settlement_proof_url?: string | null
           status?: Database["public"]["Enums"]["debt_status"]
           total_amount: number
@@ -155,6 +157,7 @@ export type Database = {
           notes?: string | null
           settled_at?: string | null
           settled_by?: string | null
+          settlement_due_at?: string | null
           settlement_proof_url?: string | null
           status?: Database["public"]["Enums"]["debt_status"]
           total_amount?: number
@@ -610,6 +613,15 @@ export type Database = {
       is_family_member: {
         Args: { _family_id: string; _user_id: string }
         Returns: boolean
+      }
+      notify_family_admins: {
+        Args: {
+          _family_id: string
+          _message: string
+          _related_id: string
+          _type: string
+        }
+        Returns: undefined
       }
       redeem_invitation: {
         Args: { _token: string }
