@@ -1,22 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Wallet, Upload } from "lucide-react";
-import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
+import { Plus, Wallet, Upload, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { formatCOP, formatDate } from "@/lib/currency";
+import { debtStatus, memberBreakdown, STATUS_META, sum } from "@/lib/debts";
 import { uploadProof } from "@/lib/storage";
+import { ProofLink } from "@/components/ProofLink";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
-  head: () => ({ meta: [{ title: "Deudas — HogarFin" }, { name: "description", content: "Gestión de deudas familiares." }] }),
+  head: () => ({
+    meta: [
+      { title: "Deudas — HogarFin" },
+      { name: "description", content: "Gestión de deudas familiares, responsables y abonos." },
+      { property: "og:title", content: "Deudas — HogarFin" },
+      { property: "og:description", content: "Gestión de deudas familiares, responsables y abonos." },
+    ],
+  }),
   component: Deudas,
 });
 
@@ -29,7 +39,7 @@ function Deudas() {
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [openNew, setOpenNew] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!familyId) return;
     const [{ data: d }, { data: m }, { data: p }, { data: pay }] = await Promise.all([
       supabase.from("debts").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
@@ -45,54 +55,76 @@ function Deudas() {
       : { data: [] as any[] };
     setProfiles(profs ?? []);
     setPayments(pay ?? []);
-  }
-  useEffect(() => { load(); }, [familyId]);
+  }, [familyId]);
 
-  const filtered = debts.filter((d) => filterStatus === "todos" || d.status === filterStatus);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(familyId, load);
+
   const isAdmin = role === "admin";
 
+  const withStatus = useMemo(
+    () => debts.map((d) => ({ debt: d, status: debtStatus(d, payments.filter((p) => p.debt_id === d.id)) })),
+    [debts, payments],
+  );
+  const filtered = withStatus.filter(({ status }) => {
+    if (filterStatus === "todos") return true;
+    if (filterStatus === "activa") return status === "activa" || status === "por_vencer";
+    return status === filterStatus;
+  });
+
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">Deudas</h1>
           <p className="text-sm text-muted-foreground">Todas las obligaciones del hogar.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="min-w-0 flex-1 sm:w-40 sm:flex-none"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="todos">Todas</SelectItem>
               <SelectItem value="activa">Activas</SelectItem>
-              <SelectItem value="pagada">Pagadas</SelectItem>
+              <SelectItem value="por_vencer">Por vencer</SelectItem>
               <SelectItem value="mora">En mora</SelectItem>
+              <SelectItem value="pagada">Pagadas</SelectItem>
             </SelectContent>
           </Select>
           {isAdmin && (
-            <Dialog open={openNew} onOpenChange={setOpenNew}>
-              <DialogTrigger asChild>
-                <Button><Plus className="mr-1 h-4 w-4" /> Nueva</Button>
-              </DialogTrigger>
-              <NewDebtDialog profiles={profiles} onDone={() => { setOpenNew(false); load(); }} userId={user!.id} familyId={familyId!} />
-            </Dialog>
+            <Button className="shrink-0" onClick={() => setOpenNew(true)}><Plus className="mr-1 h-4 w-4" /> Nueva</Button>
           )}
         </div>
       </div>
 
+      <Dialog open={openNew} onOpenChange={setOpenNew}>
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
+          <DialogHeader><DialogTitle>Nueva deuda</DialogTitle></DialogHeader>
+          <DebtForm
+            profiles={profiles}
+            userId={user!.id}
+            familyId={familyId!}
+            onDone={() => { setOpenNew(false); load(); }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {filtered.length === 0 ? (
-        <Card><CardContent className="p-10 text-center text-muted-foreground">Sin deudas registradas.</CardContent></Card>
+        <Card><CardContent className="p-10 text-center text-muted-foreground">Sin deudas con este filtro.</CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((d) => (
+          {filtered.map(({ debt, status }) => (
             <DebtCard
-              key={d.id}
-              debt={d}
-              members={members.filter((m) => m.debt_id === d.id)}
+              key={debt.id}
+              debt={debt}
+              status={status}
+              members={members.filter((m) => m.debt_id === debt.id)}
               profiles={profiles}
-              payments={payments.filter((p) => p.debt_id === d.id)}
+              payments={payments.filter((p) => p.debt_id === debt.id)}
               onChange={load}
               canPay={role !== "invitado"}
               isAdmin={isAdmin}
+              userId={user!.id}
+              familyId={familyId!}
             />
           ))}
         </div>
@@ -101,32 +133,29 @@ function Deudas() {
   );
 }
 
-function DebtCard({ debt, members, profiles, payments, onChange, canPay, isAdmin }: any) {
-  const paid = payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+function DebtCard({ debt, status, members, profiles, payments, onChange, canPay, isAdmin, userId, familyId }: any) {
+  const paid = sum(payments);
   const remaining = Math.max(0, Number(debt.total_amount) - paid);
-  const days = daysUntil(debt.due_date);
+  const pct = Number(debt.total_amount) ? Math.min(100, (paid / Number(debt.total_amount)) * 100) : 0;
   const [openPay, setOpenPay] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openProof, setOpenProof] = useState(false);
+  const meta = STATUS_META[status as keyof typeof STATUS_META];
+  const breakdown = memberBreakdown(members, payments);
+  const nameOf = (id: string) => profiles.find((p: any) => p.id === id)?.name ?? "?";
 
-  const status =
-    remaining <= 0 ? "pagada" : days !== null && days < 0 ? "mora" : days !== null && days <= 3 ? "por_vencer" : "activa";
-  const statusMap: Record<string, { label: string; cls: string }> = {
-    pagada: { label: "Pagada", cls: "bg-success/15 text-success" },
-    mora: { label: "En mora", cls: "bg-destructive/15 text-destructive" },
-    por_vencer: { label: "Por vencer", cls: "bg-warning/30 text-warning-foreground" },
-    activa: { label: "Al día", cls: "bg-primary/10 text-primary" },
-  };
+  const necesitaComprobante = status === "pagada" && !debt.settlement_proof_url;
+  const vence = debt.settlement_due_at ? new Date(debt.settlement_due_at) : null;
 
   return (
     <Card>
       <CardContent className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-primary" />
-              <h3 className="truncate font-semibold">{debt.name}</h3>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusMap[status].cls}`}>
-                {statusMap[status].label}
-              </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Wallet className="h-4 w-4 shrink-0 text-primary" />
+              <h3 className="min-w-0 break-words font-semibold">{debt.name}</h3>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${meta.cls}`}>{meta.label}</span>
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
               {debt.entity} · {debt.debt_type === "cuotas" ? `${debt.total_cuotas} cuotas` : "Pago único"}
@@ -138,50 +167,170 @@ function DebtCard({ debt, members, profiles, payments, onChange, canPay, isAdmin
           </div>
         </div>
 
-        {members.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {members.map((m: any) => {
-              const p = profiles.find((pr: any) => pr.id === m.user_id);
-              return (
-                <Badge key={m.id} variant="secondary" className="font-normal">
-                  {p?.name ?? "?"} · {m.percentage != null ? `${Number(m.percentage)}% · ` : ""}{formatCOP(m.amount_assigned)}
-                </Badge>
-              );
-            })}
+        <Progress value={pct} className="mt-3 h-1.5" />
+        <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+          <span>Abonado {formatCOP(paid)}</span>
+          <span>{pct.toFixed(0)}%</span>
+        </div>
+
+        {breakdown.length > 0 && (
+          <div className="mt-3 space-y-2 rounded-lg border p-3">
+            <div className="text-xs font-semibold text-muted-foreground">Responsables</div>
+            {breakdown.map((m: any) => (
+              <div key={m.id}>
+                <div className="flex flex-wrap justify-between gap-1 text-xs">
+                  <span className="min-w-0 truncate">{nameOf(m.user_id)}</span>
+                  <span className="text-muted-foreground">
+                    {formatCOP(m.paid)} / {formatCOP(m.assigned)} ·{" "}
+                    <b className={m.pending === 0 ? "text-success" : "text-foreground"}>
+                      {m.pending === 0 ? "al día" : `faltan ${formatCOP(m.pending)}`}
+                    </b>
+                  </span>
+                </div>
+                <Progress value={m.pct} className="mt-1 h-1.5" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {necesitaComprobante && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-warning/20 p-3 text-xs text-warning-foreground">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1">
+              Falta el comprobante del pago total de la factura
+              {vence ? ` · plazo hasta ${formatDate(vence)} ${vence.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}` : ""}.
+            </span>
+            {canPay && (
+              <Button size="sm" variant="secondary" onClick={() => setOpenProof(true)}>Subir comprobante</Button>
+            )}
+          </div>
+        )}
+
+        {debt.settlement_proof_url && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            Pago total de la factura: <ProofLink path={debt.settlement_proof_url} label="Ver comprobante" />
           </div>
         )}
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>Vence: {formatDate(debt.due_date)}</span>
-          <div className="flex gap-2">
-            {canPay && (
-              <Dialog open={openPay} onOpenChange={setOpenPay}>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline">Registrar abono</Button>
-                </DialogTrigger>
-                <PaymentDialog debt={debt} profiles={profiles} onDone={() => { setOpenPay(false); onChange(); }} />
-              </Dialog>
+          <div className="flex flex-wrap gap-2">
+            {canPay && status !== "pagada" && (
+              <Button size="sm" variant="outline" onClick={() => setOpenPay(true)}>Registrar abono</Button>
             )}
             {isAdmin && (
-              <Button size="sm" variant="ghost" onClick={async () => {
-                if (!confirm("¿Eliminar esta deuda?")) return;
-                await supabase.from("debts").delete().eq("id", debt.id);
-                toast.success("Deuda eliminada");
-                onChange();
-              }}>Eliminar</Button>
+              <>
+                <Button size="sm" variant="ghost" onClick={() => setOpenEdit(true)}>
+                  <Pencil className="mr-1 h-3.5 w-3.5" /> Editar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  onClick={async () => {
+                    if (!confirm("¿Eliminar esta deuda y todos sus abonos?")) return;
+                    const { error } = await supabase.from("debts").delete().eq("id", debt.id);
+                    if (error) return toast.error(error.message);
+                    toast.success("Deuda eliminada");
+                    onChange();
+                  }}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Eliminar
+                </Button>
+              </>
             )}
           </div>
         </div>
+
+        <Dialog open={openPay} onOpenChange={setOpenPay}>
+          <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
+            <DialogHeader><DialogTitle>Registrar abono — {debt.name}</DialogTitle></DialogHeader>
+            <PaymentForm
+              debt={debt}
+              profiles={profiles}
+              breakdown={breakdown}
+              remaining={remaining}
+              userId={userId}
+              familyId={familyId}
+              onDone={() => { setOpenPay(false); onChange(); }}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={openEdit} onOpenChange={setOpenEdit}>
+          <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
+            <DialogHeader><DialogTitle>Editar deuda</DialogTitle></DialogHeader>
+            <DebtForm
+              debt={debt}
+              existingMembers={members}
+              profiles={profiles}
+              userId={userId}
+              familyId={familyId}
+              onDone={() => { setOpenEdit(false); onChange(); }}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={openProof} onOpenChange={setOpenProof}>
+          <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
+            <DialogHeader><DialogTitle>Comprobante del pago total</DialogTitle></DialogHeader>
+            <SettlementProofForm
+              debt={debt}
+              userId={userId}
+              onDone={() => { setOpenProof(false); onChange(); }}
+            />
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
 }
 
-function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
-  const [type, setType] = useState<"unico" | "cuotas">("unico");
-  const [split, setSplit] = useState<"porcentaje" | "fijo">("porcentaje");
-  const [total, setTotal] = useState("");
-  const [assign, setAssign] = useState<Record<string, string>>({});
+function SettlementProofForm({ debt, userId, onDone }: any) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!file) return toast.error("Adjunta el comprobante del pago total");
+    setLoading(true);
+    try {
+      const path = await uploadProof(userId, file);
+      const { error } = await supabase
+        .from("debts")
+        .update({ settlement_proof_url: path, settlement_due_at: null, status: "pagada" })
+        .eq("id", debt.id);
+      if (error) throw error;
+      toast.success("Comprobante guardado");
+      onDone();
+    } catch (err: any) {
+      toast.error(err.message ?? "No se pudo guardar el comprobante");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Adjunta la evidencia del pago total de la factura de <b>{debt.name}</b>. Quedará disponible en el historial.
+      </p>
+      <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Guardando…" : "Guardar comprobante"}</Button></DialogFooter>
+    </form>
+  );
+}
+
+function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, familyId }: any) {
+  const editing = !!debt;
+  const [type, setType] = useState<"unico" | "cuotas">(debt?.debt_type ?? "unico");
+  const [split, setSplit] = useState<"porcentaje" | "fijo">("fijo");
+  const [total, setTotal] = useState<string>(debt ? String(debt.total_amount) : "");
+  const [assign, setAssign] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    existingMembers.forEach((m: any) => { init[m.user_id] = String(Number(m.amount_assigned ?? 0)); });
+    return init;
+  });
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -190,178 +339,227 @@ function NewDebtDialog({ profiles, onDone, userId, familyId }: any) {
     const totalN = Number(fd.get("total_amount"));
     const suma = Object.values(assign).reduce((s, v) => s + Number(v || 0), 0);
     if (split === "porcentaje") {
-      if (suma > 0 && Math.abs(suma - 100) > 0.1) {
-        toast.error(`Los porcentajes deben sumar 100% (van ${suma}%)`);
-        return;
-      }
+      if (suma > 0 && Math.abs(suma - 100) > 0.1) return toast.error(`Los porcentajes deben sumar 100% (van ${suma}%)`);
     } else if (suma - totalN > 0.5) {
-      toast.error("La suma de los valores asignados supera el total de la deuda");
-      return;
+      return toast.error("La suma de los valores asignados supera el total de la deuda");
     }
     setLoading(true);
     const totalCuotas = type === "cuotas" ? Number(fd.get("total_cuotas")) : null;
-    const cuotaAmount = type === "cuotas" && totalCuotas ? totalN / totalCuotas : null;
-    const { data: d, error } = await supabase.from("debts").insert({
+    const payload = {
       name: String(fd.get("name")),
       entity: String(fd.get("entity")),
       total_amount: totalN,
       debt_type: type,
       total_cuotas: totalCuotas,
-      cuota_amount: cuotaAmount,
-      due_date: (String(fd.get("due_date")) || null),
+      cuota_amount: type === "cuotas" && totalCuotas ? totalN / totalCuotas : null,
+      due_date: String(fd.get("due_date")) || null,
       notes: String(fd.get("notes") || "") || null,
-      created_by: userId,
       family_id: familyId,
-    }).select().single();
-    if (error) { toast.error(error.message); setLoading(false); return; }
+    };
+
+    let debtId = debt?.id as string | undefined;
+    if (editing) {
+      const { error } = await supabase.from("debts").update(payload).eq("id", debt.id);
+      if (error) { toast.error(error.message); setLoading(false); return; }
+      await supabase.from("debt_members").delete().eq("debt_id", debt.id);
+    } else {
+      const { data, error } = await supabase.from("debts").insert({ ...payload, created_by: userId }).select().single();
+      if (error || !data) { toast.error(error?.message ?? "Error"); setLoading(false); return; }
+      debtId = data.id;
+    }
+
     const rows = Object.entries(assign)
       .filter(([, v]) => Number(v) > 0)
       .map(([uid, v]) => ({
-        debt_id: d.id,
+        debt_id: debtId!,
         user_id: uid,
         percentage: split === "porcentaje" ? Number(v) : totalN ? (Number(v) / totalN) * 100 : null,
         amount_assigned: split === "porcentaje" ? (Number(v) / 100) * totalN : Number(v),
       }));
-    if (rows.length) await supabase.from("debt_members").insert(rows);
-    toast.success("Deuda creada");
+    if (rows.length) {
+      const { error } = await supabase.from("debt_members").insert(rows);
+      if (error) toast.error(error.message);
+    }
     setLoading(false);
+    toast.success(editing ? "Deuda actualizada" : "Deuda creada");
     onDone();
   }
 
   return (
-    <DialogContent className="max-h-[90vh] overflow-y-auto">
-      <DialogHeader><DialogTitle>Nueva deuda</DialogTitle></DialogHeader>
-      <form onSubmit={submit} className="space-y-3">
-        <div><Label>Nombre</Label><Input name="name" required /></div>
-        <div><Label>Entidad</Label><Input name="entity" required placeholder="Banco, casa, etc." /></div>
-        <div><Label>Valor total</Label><Input name="total_amount" type="number" step="0.01" required value={total} onChange={(e) => setTotal(e.target.value)} /></div>
-        <div>
-          <Label>Tipo</Label>
-          <Select value={type} onValueChange={(v) => setType(v as any)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+    <form onSubmit={submit} className="space-y-3">
+      <div><Label>Nombre</Label><Input name="name" required defaultValue={debt?.name} /></div>
+      <div><Label>Entidad</Label><Input name="entity" required placeholder="Banco, casa, etc." defaultValue={debt?.entity} /></div>
+      <div>
+        <Label>Valor total</Label>
+        <Input name="total_amount" type="number" step="0.01" required value={total} onChange={(e) => setTotal(e.target.value)} />
+      </div>
+      <div>
+        <Label>Tipo</Label>
+        <Select value={type} onValueChange={(v) => setType(v as any)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unico">Pago único</SelectItem>
+            <SelectItem value="cuotas">A cuotas</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {type === "cuotas" && (
+        <div><Label># de cuotas</Label><Input name="total_cuotas" type="number" min="1" required defaultValue={debt?.total_cuotas ?? ""} /></div>
+      )}
+      <div><Label>Fecha de vencimiento</Label><Input name="due_date" type="date" defaultValue={debt?.due_date ?? ""} /></div>
+      <div><Label>Notas</Label><Textarea name="notes" defaultValue={debt?.notes ?? ""} /></div>
+
+      <div className="rounded-lg border p-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <Label>Responsables</Label>
+          <Select value={split} onValueChange={(v) => { setSplit(v as any); setAssign({}); }}>
+            <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="unico">Pago único</SelectItem>
-              <SelectItem value="cuotas">A cuotas</SelectItem>
+              <SelectItem value="fijo">Por valor fijo</SelectItem>
+              <SelectItem value="porcentaje">Por porcentaje</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        {type === "cuotas" && (
-          <div><Label># de cuotas</Label><Input name="total_cuotas" type="number" min="1" required /></div>
-        )}
-        <div><Label>Fecha de vencimiento</Label><Input name="due_date" type="date" /></div>
-        <div><Label>Notas</Label><Textarea name="notes" /></div>
-
-        <div className="rounded-lg border p-3">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <Label>Responsables</Label>
-            <Select value={split} onValueChange={(v) => { setSplit(v as any); setAssign({}); }}>
-              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="porcentaje">Por porcentaje</SelectItem>
-                <SelectItem value="fijo">Por valor fijo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            {profiles.map((p: any) => (
-              <div key={p.id} className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-                <Input
-                  type="number"
-                  min="0"
-                  max={split === "porcentaje" ? "100" : undefined}
-                  step="0.01"
-                  className="w-28"
-                  placeholder="0"
-                  value={assign[p.id] ?? ""}
-                  onChange={(e) => setAssign((s) => ({ ...s, [p.id]: e.target.value }))}
-                />
-                <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
-                  {split === "porcentaje"
-                    ? (total ? formatCOP((Number(assign[p.id] || 0) / 100) * Number(total)) : "$0")
-                    : (total ? `${(((Number(assign[p.id] || 0)) / Number(total)) * 100 || 0).toFixed(1)}%` : "0%")}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 text-right text-xs text-muted-foreground">
-            Suma: {split === "porcentaje"
-              ? `${Object.values(assign).reduce((s, v) => s + Number(v || 0), 0)}%`
-              : formatCOP(Object.values(assign).reduce((s, v) => s + Number(v || 0), 0))}
-          </div>
+        <div className="space-y-2">
+          {profiles.map((p: any) => (
+            <div key={p.id} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
+              <Input
+                type="number"
+                min="0"
+                max={split === "porcentaje" ? "100" : undefined}
+                step="0.01"
+                className="w-24 shrink-0 sm:w-28"
+                placeholder="0"
+                value={assign[p.id] ?? ""}
+                onChange={(e) => setAssign((s) => ({ ...s, [p.id]: e.target.value }))}
+              />
+              <span className="w-20 shrink-0 text-right text-xs text-muted-foreground sm:w-24">
+                {split === "porcentaje"
+                  ? (total ? formatCOP((Number(assign[p.id] || 0) / 100) * Number(total)) : "$0")
+                  : (total ? `${(((Number(assign[p.id] || 0)) / Number(total)) * 100 || 0).toFixed(1)}%` : "0%")}
+              </span>
+            </div>
+          ))}
         </div>
+        <div className="mt-2 text-right text-xs text-muted-foreground">
+          Suma: {split === "porcentaje"
+            ? `${Object.values(assign).reduce((s, v) => s + Number(v || 0), 0)}%`
+            : formatCOP(Object.values(assign).reduce((s, v) => s + Number(v || 0), 0))}
+        </div>
+      </div>
 
-        <DialogFooter>
-          <Button type="submit" disabled={loading}>{loading ? "Creando…" : "Crear deuda"}</Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
+      <DialogFooter>
+        <Button type="submit" disabled={loading}>
+          {loading ? "Guardando…" : editing ? "Guardar cambios" : "Crear deuda"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
-function PaymentDialog({ debt, profiles, onDone }: any) {
-  const { user } = useAuth();
+function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, onDone }: any) {
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [target, setTarget] = useState<string>(user!.id);
+  const [target, setTarget] = useState<string>(userId);
+  const [amount, setAmount] = useState<string>("");
+
+  const saldaDeuda = Number(amount || 0) >= remaining - 0.5 && Number(amount || 0) > 0;
+  const responsable = breakdown.find((m: any) => m.user_id === target);
+  const pendientesOtros = breakdown.filter((m: any) => m.user_id !== target && m.pending > 0);
+  // Quien salda debe adjuntar el comprobante total salvo que el pago corresponda a otra persona.
+  const comprobanteObligatorio = saldaDeuda && pendientesOtros.length === 0;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (comprobanteObligatorio && !file) {
+      return toast.error("Al saldar la deuda debes adjuntar el comprobante del pago total");
+    }
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     let proof_url: string | null = null;
     try {
-      proof_url = await uploadProof(user!.id, file);
+      proof_url = await uploadProof(userId, file);
     } catch (err: any) {
-      toast.error(err.message ?? "No se pudo subir el comprobante");
       setLoading(false);
-      return;
+      return toast.error(err.message ?? "No se pudo subir el comprobante");
     }
     const { error } = await supabase.from("payments").insert({
       debt_id: debt.id,
       user_id: target,
-      created_by: user!.id,
+      created_by: userId,
       amount: Number(fd.get("amount")),
       payment_date: String(fd.get("payment_date")),
       proof_url,
       notes: String(fd.get("notes") || "") || null,
     });
+    if (error) { setLoading(false); return toast.error(error.message); }
+
+    if (saldaDeuda) {
+      if (comprobanteObligatorio) {
+        await supabase
+          .from("debts")
+          .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_proof_url: proof_url, settlement_due_at: null })
+          .eq("id", debt.id);
+      } else {
+        const limite = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        await supabase
+          .from("debts")
+          .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_due_at: limite })
+          .eq("id", debt.id);
+        await supabase.rpc("notify_family_admins", {
+          _family_id: familyId,
+          _type: "comprobante_pendiente",
+          _message: `La deuda "${debt.name}" quedó saldada por un abono que no corresponde al responsable. Sube el comprobante del pago total antes de 24 horas.`,
+          _related_id: debt.id,
+        });
+        toast.info("Se avisó al administrador para el comprobante del pago total (24 horas).");
+      }
+    }
+
     setLoading(false);
-    if (error) return toast.error(error.message);
     toast.success("Abono registrado");
     onDone();
   }
 
   return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>Registrar abono — {debt.name}</DialogTitle></DialogHeader>
-      <form onSubmit={submit} className="space-y-3">
-        <div><Label>Monto</Label><Input name="amount" type="number" step="0.01" required /></div>
-        <div>
-          <Label>Abono a nombre de</Label>
-          <Select value={target} onValueChange={setTarget}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {(profiles ?? []).map((p: any) => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="mt-1 text-xs text-muted-foreground">El monto se suma al seguimiento de esta persona.</p>
-        </div>
-        <div><Label>Fecha</Label><Input name="payment_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
-        <div>
-          <Label>Comprobante (foto)</Label>
-          <div className="flex items-center gap-2">
-            <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-            <Upload className="h-4 w-4 text-muted-foreground" />
-          </div>
-        </div>
-        <div><Label>Notas</Label><Textarea name="notes" /></div>
-        <DialogFooter>
-          <Button type="submit" disabled={loading}>{loading ? "Guardando…" : "Guardar abono"}</Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
+    <form onSubmit={submit} className="space-y-3">
+      <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+        Pendiente de la deuda: <b className="text-foreground">{formatCOP(remaining)}</b>
+        {responsable && (
+          <> · Pendiente de {profiles.find((p: any) => p.id === target)?.name ?? "esta persona"}:{" "}
+            <b className="text-foreground">{formatCOP(responsable.pending)}</b></>
+        )}
+      </div>
+      <div>
+        <Label>Monto</Label>
+        <Input name="amount" type="number" step="0.01" min="1" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </div>
+      <div>
+        <Label>Abono a nombre de</Label>
+        <Select value={target} onValueChange={setTarget}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {(profiles ?? []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <p className="mt-1 text-xs text-muted-foreground">El monto se descuenta de lo asignado a esta persona.</p>
+      </div>
+      <div><Label>Fecha</Label><Input name="payment_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
+      <div>
+        <Label className="flex items-center gap-2">
+          <Upload className="h-4 w-4" /> Comprobante {comprobanteObligatorio ? "(obligatorio)" : "(opcional)"}
+        </Label>
+        <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        {saldaDeuda && !comprobanteObligatorio && (
+          <p className="mt-1 text-xs text-warning-foreground">
+            Este abono salda la deuda pero quedan responsables pendientes: se avisará al administrador para subir el
+            comprobante del pago total en máximo 24 horas.
+          </p>
+        )}
+      </div>
+      <div><Label>Notas</Label><Textarea name="notes" /></div>
+      <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Guardando…" : "Guardar abono"}</Button></DialogFooter>
+    </form>
   );
 }

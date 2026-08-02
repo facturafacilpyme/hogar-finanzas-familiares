@@ -163,3 +163,19 @@
     letter-spacing: -0.02em;
   }
 }
+
+/* Responsividad: evitar desbordes horizontales en móviles */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  min-width: 0;
+}
+
+table {
+  max-width: 100%;
+}
