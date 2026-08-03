@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/currency";
 import { useServerFn } from "@tanstack/react-start";
 import { purgeFamilyMember } from "@/lib/admin.functions";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 
 export const Route = createFileRoute("/_authenticated/miembros")({
   head: () => ({ meta: [{ title: "Miembros — HogarFin" }, { name: "description", content: "Gestión de miembros de tu familia." }] }),
@@ -30,6 +31,7 @@ function Miembros() {
   const [name, setName] = useState("");
   const [invName, setInvName] = useState("");
   const [invEmail, setInvEmail] = useState("");
+  const [phones, setPhones] = useState<Record<string, string>>({});
   const purge = useServerFn(purgeFamilyMember);
 
   useEffect(() => {
@@ -49,9 +51,23 @@ function Miembros() {
       ? await supabase.from("profiles").select("id, name, email, phone").in("id", ids)
       : { data: [] as any[] };
     setMembers((m ?? []).map((x: any) => ({ ...x, profiles: (profs ?? []).find((p: any) => p.id === x.user_id) ?? null })));
+    const ph: Record<string, string> = {};
+    (profs ?? []).forEach((p: any) => { ph[p.id] = p.phone ?? ""; });
+    setPhones(ph);
     setInvites(inv ?? []);
   }
   useEffect(() => { load(); }, [familyId]);
+
+  async function savePhone(userId: string) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ phone: (phones[userId] ?? "").trim() || null })
+      .eq("id", userId);
+    if (error) return toast.error(error.message);
+    toast.success("WhatsApp actualizado");
+    load();
+    refresh();
+  }
 
   async function changeRole(memberId: string, newRole: string) {
     const { error } = await supabase.from("family_members").update({ role: newRole as any }).eq("id", memberId);
@@ -216,7 +232,8 @@ function Miembros() {
       <div className="grid gap-3">
         {members.map((m) => (
           <Card key={m.id}>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <CardContent className="space-y-3 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
                   <Users className="h-4 w-4" />
@@ -238,6 +255,24 @@ function Miembros() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
+              </div>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[180px] flex-1">
+                  <Label className="text-xs">WhatsApp</Label>
+                  <Input
+                    value={phones[m.user_id] ?? ""}
+                    onChange={(e) => setPhones((s) => ({ ...s, [m.user_id]: e.target.value }))}
+                    placeholder="3001234567"
+                    inputMode="tel"
+                  />
+                </div>
+                <Button size="sm" variant="outline" onClick={() => savePhone(m.user_id)}>Guardar</Button>
+                <WhatsAppButton
+                  phone={phones[m.user_id]}
+                  label="Saludar"
+                  message={`Hola ${m.profiles?.name ?? ""} 👋 Te escribo desde HogarFin (${familyName ?? "nuestra familia"}). Aquí llevamos juntos las deudas y las metas de ahorro del hogar.`}
+                />
               </div>
             </CardContent>
           </Card>
