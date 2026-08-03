@@ -18,6 +18,8 @@ import { ProofLink } from "@/components/ProofLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { mensajeAhorro } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/ahorros")({
   head: () => ({
@@ -32,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/ahorros")({
 });
 
 function Ahorros() {
-  const { user, role, familyId } = useAuth();
+  const { user, role, familyId, familyName } = useAuth();
   const [goals, setGoals] = useState<any[]>([]);
   const [goalMembers, setGoalMembers] = useState<any[]>([]);
   const [contribs, setContribs] = useState<any[]>([]);
@@ -49,7 +51,7 @@ function Ahorros() {
     ]);
     const ids = (fm ?? []).map((x: any) => x.user_id);
     const { data: profs } = ids.length
-      ? await supabase.from("profiles").select("id, name, email").in("id", ids)
+      ? await supabase.from("profiles").select("id, name, email, phone").in("id", ids)
       : { data: [] as any[] };
     setGoals(g ?? []);
     setGoalMembers(gm ?? []);
@@ -111,6 +113,7 @@ function Ahorros() {
                   isAdmin={isAdmin}
                   userId={user!.id}
                   familyId={familyId!}
+                  familyName={familyName}
                   onChange={load}
                 />
               ))}
@@ -134,7 +137,7 @@ function Ahorros() {
   );
 }
 
-function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAdmin, userId, familyId, onChange }: any) {
+function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAdmin, userId, familyId, familyName, onChange }: any) {
   const [openContrib, setOpenContrib] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [breaking, setBreaking] = useState(false);
@@ -241,6 +244,26 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
                     <span className="shrink-0 text-muted-foreground">{formatCOP(ap)} / {formatCOP(cuota)}</span>
                   </div>
                   <Progress value={p2} className="mt-1 h-1.5" />
+                  <div className="mt-1 flex justify-end">
+                    <WhatsAppButton
+                      phone={profiles.find((p: any) => p.id === uid)?.phone}
+                      variant="ghost"
+                      label={done ? "Felicitar" : "Motivar por WhatsApp"}
+                      className="h-7 px-2 text-[11px]"
+                      message={mensajeAhorro({
+                        nombre: nameOf(uid),
+                        meta: g.name,
+                        aportado: ap,
+                        cuota,
+                        restante,
+                        porDia: porPersonaDia,
+                        dias,
+                        completada: done,
+                        familia: familyName,
+                        seed: uid.charCodeAt(0) + Math.floor(pct),
+                      })}
+                    />
+                  </div>
                 </div>
               );
             })

@@ -9,6 +9,7 @@ interface Profile {
   email: string;
   name: string;
   avatar_url: string | null;
+  phone?: string | null;
 }
 
 export interface Membership {

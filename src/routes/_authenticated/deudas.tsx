@@ -17,6 +17,9 @@ import { ProofLink } from "@/components/ProofLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { mensajeDeuda } from "@/lib/whatsapp";
+import { daysUntil } from "@/lib/currency";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
   head: () => ({
@@ -31,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/deudas")({
 });
 
 function Deudas() {
-  const { user, role, familyId } = useAuth();
+  const { user, role, familyId, familyName } = useAuth();
   const [debts, setDebts] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -51,7 +54,7 @@ function Deudas() {
     setMembers(m ?? []);
     const ids = (p ?? []).map((x: any) => x.user_id);
     const { data: profs } = ids.length
-      ? await supabase.from("profiles").select("id, name, email").in("id", ids)
+      ? await supabase.from("profiles").select("id, name, email, phone").in("id", ids)
       : { data: [] as any[] };
     setProfiles(profs ?? []);
     setPayments(pay ?? []);
@@ -125,6 +128,7 @@ function Deudas() {
               isAdmin={isAdmin}
               userId={user!.id}
               familyId={familyId!}
+              familyName={familyName}
             />
           ))}
         </div>
@@ -133,7 +137,7 @@ function Deudas() {
   );
 }
 
-function DebtCard({ debt, status, members, profiles, payments, onChange, canPay, isAdmin, userId, familyId }: any) {
+function DebtCard({ debt, status, members, profiles, payments, onChange, canPay, isAdmin, userId, familyId, familyName }: any) {
   const paid = sum(payments);
   const remaining = Math.max(0, Number(debt.total_amount) - paid);
   const pct = Number(debt.total_amount) ? Math.min(100, (paid / Number(debt.total_amount)) * 100) : 0;
@@ -143,6 +147,8 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
   const meta = STATUS_META[status as keyof typeof STATUS_META];
   const breakdown = memberBreakdown(members, payments);
   const nameOf = (id: string) => profiles.find((p: any) => p.id === id)?.name ?? "?";
+  const profOf = (id: string) => profiles.find((p: any) => p.id === id);
+  const dias = daysUntil(debt.due_date);
 
   const necesitaComprobante = status === "pagada" && !debt.settlement_proof_url;
   const vence = debt.settlement_due_at ? new Date(debt.settlement_due_at) : null;
@@ -188,6 +194,26 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
                   </span>
                 </div>
                 <Progress value={m.pct} className="mt-1 h-1.5" />
+                {m.pending > 0 && (
+                  <div className="mt-1 flex justify-end">
+                    <WhatsAppButton
+                      phone={profOf(m.user_id)?.phone}
+                      variant="ghost"
+                      label="Recordar por WhatsApp"
+                      className="h-7 px-2 text-[11px]"
+                      message={mensajeDeuda({
+                        nombre: nameOf(m.user_id),
+                        deuda: debt.name,
+                        entidad: debt.entity,
+                        pendiente: m.pending,
+                        vence: debt.due_date,
+                        dias,
+                        status: status as any,
+                        familia: familyName,
+                      })}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -209,6 +235,13 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
         {debt.settlement_proof_url && (
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             Pago total de la factura: <ProofLink path={debt.settlement_proof_url} label="Ver comprobante" />
+          </div>
+        )}
+
+        {debt.document_url && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            Soporte de la deuda{debt.document_note ? ` (${debt.document_note})` : ""}:{" "}
+            <ProofLink path={debt.document_url} label="Ver extracto/factura" />
           </div>
         )}
 
@@ -252,7 +285,11 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
               remaining={remaining}
               userId={userId}
               familyId={familyId}
-              onDone={() => { setOpenPay(false); onChange(); }}
+              onDone={(saldo?: boolean) => {
+                setOpenPay(false);
+                onChange();
+                if (saldo) setOpenProof(true);
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -326,6 +363,7 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
   const [type, setType] = useState<"unico" | "cuotas">(debt?.debt_type ?? "unico");
   const [split, setSplit] = useState<"porcentaje" | "fijo">("fijo");
   const [total, setTotal] = useState<string>(debt ? String(debt.total_amount) : "");
+  const [docFile, setDocFile] = useState<File | null>(null);
   const [assign, setAssign] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     existingMembers.forEach((m: any) => { init[m.user_id] = String(Number(m.amount_assigned ?? 0)); });
@@ -345,6 +383,15 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
     }
     setLoading(true);
     const totalCuotas = type === "cuotas" ? Number(fd.get("total_cuotas")) : null;
+    let documentUrl: string | null = debt?.document_url ?? null;
+    if (docFile) {
+      try {
+        documentUrl = await uploadProof(userId, docFile);
+      } catch (err: any) {
+        setLoading(false);
+        return toast.error(err.message ?? "No se pudo subir el soporte de la deuda");
+      }
+    }
     const payload = {
       name: String(fd.get("name")),
       entity: String(fd.get("entity")),
@@ -354,6 +401,8 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
       cuota_amount: type === "cuotas" && totalCuotas ? totalN / totalCuotas : null,
       due_date: String(fd.get("due_date")) || null,
       notes: String(fd.get("notes") || "") || null,
+      document_url: documentUrl,
+      document_note: String(fd.get("document_note") || "") || null,
       family_id: familyId,
     };
 
@@ -408,6 +457,25 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
       )}
       <div><Label>Fecha de vencimiento</Label><Input name="due_date" type="date" defaultValue={debt?.due_date ?? ""} /></div>
       <div><Label>Notas</Label><Textarea name="notes" defaultValue={debt?.notes ?? ""} /></div>
+
+      <div className="rounded-lg border p-3">
+        <Label className="flex items-center gap-2">
+          <Upload className="h-4 w-4" /> Soporte de la deuda (extracto, factura o similar)
+        </Label>
+        <Input
+          type="file"
+          accept="image/*,application/pdf"
+          className="mt-2"
+          onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+        />
+        <Input name="document_note" className="mt-2" placeholder="Descripción del soporte (opcional)" defaultValue={debt?.document_note ?? ""} />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Sustenta los valores asignados a cada responsable. Queda visible para toda la familia y en el historial.
+        </p>
+        {editing && debt?.document_url && !docFile && (
+          <p className="mt-1 text-xs text-muted-foreground">Ya hay un soporte adjunto; sube otro para reemplazarlo.</p>
+        )}
+      </div>
 
       <div className="rounded-lg border p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -466,15 +534,9 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
 
   const saldaDeuda = Number(amount || 0) >= remaining - 0.5 && Number(amount || 0) > 0;
   const responsable = breakdown.find((m: any) => m.user_id === target);
-  const pendientesOtros = breakdown.filter((m: any) => m.user_id !== target && m.pending > 0);
-  // Quien salda debe adjuntar el comprobante total salvo que el pago corresponda a otra persona.
-  const comprobanteObligatorio = saldaDeuda && pendientesOtros.length === 0;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (comprobanteObligatorio && !file) {
-      return toast.error("Al saldar la deuda debes adjuntar el comprobante del pago total");
-    }
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     let proof_url: string | null = null;
@@ -496,30 +558,25 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
     if (error) { setLoading(false); return toast.error(error.message); }
 
     if (saldaDeuda) {
-      if (comprobanteObligatorio) {
-        await supabase
-          .from("debts")
-          .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_proof_url: proof_url, settlement_due_at: null })
-          .eq("id", debt.id);
-      } else {
-        const limite = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        await supabase
-          .from("debts")
-          .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_due_at: limite })
-          .eq("id", debt.id);
-        await supabase.rpc("notify_family_admins", {
-          _family_id: familyId,
-          _type: "comprobante_pendiente",
-          _message: `La deuda "${debt.name}" quedó saldada por un abono que no corresponde al responsable. Sube el comprobante del pago total antes de 24 horas.`,
-          _related_id: debt.id,
-        });
-        toast.info("Se avisó al administrador para el comprobante del pago total (24 horas).");
-      }
+      // El comprobante del abono NUNCA sirve como comprobante de liquidación:
+      // siempre se exige aparte la evidencia del pago total de la factura.
+      const limite = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from("debts")
+        .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_due_at: limite })
+        .eq("id", debt.id);
+      await supabase.rpc("notify_family_admins", {
+        _family_id: familyId,
+        _type: "comprobante_pendiente",
+        _message: `La deuda "${debt.name}" quedó saldada. Es obligatorio subir el comprobante del pago total de la factura antes de 24 horas.`,
+        _related_id: debt.id,
+      });
+      toast.info("Falta el comprobante del pago total de la factura (obligatorio, máximo 24 horas).");
     }
 
     setLoading(false);
     toast.success("Abono registrado");
-    onDone();
+    onDone(saldaDeuda);
   }
 
   return (
@@ -548,13 +605,13 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
       <div><Label>Fecha</Label><Input name="payment_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
       <div>
         <Label className="flex items-center gap-2">
-          <Upload className="h-4 w-4" /> Comprobante {comprobanteObligatorio ? "(obligatorio)" : "(opcional)"}
+          <Upload className="h-4 w-4" /> Comprobante del abono (opcional)
         </Label>
         <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        {saldaDeuda && !comprobanteObligatorio && (
+        {saldaDeuda && (
           <p className="mt-1 text-xs text-warning-foreground">
-            Este abono salda la deuda pero quedan responsables pendientes: se avisará al administrador para subir el
-            comprobante del pago total en máximo 24 horas.
+            Este abono salda la deuda: a continuación deberás adjuntar el <b>comprobante del pago total de la factura</b>
+            {" "}(obligatorio). También se avisará al administrador con un plazo de 24 horas.
           </p>
         )}
       </div>

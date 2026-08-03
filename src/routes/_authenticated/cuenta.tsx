@@ -23,19 +23,24 @@ export const Route = createFileRoute("/_authenticated/cuenta")({
 function Cuenta() {
   const { user, profile, refresh } = useAuth();
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [changing, setChanging] = useState(false);
 
   useEffect(() => setName(profile?.name ?? ""), [profile?.name]);
+  useEffect(() => setPhone(profile?.phone ?? ""), [profile?.phone]);
 
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({ name }).eq("id", user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ name, phone: phone.trim() || null })
+      .eq("id", user.id);
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Nombre actualizado");
+    toast.success("Datos actualizados");
     refresh();
   }
 
@@ -76,6 +81,19 @@ function Cuenta() {
             <div className="min-w-[200px] flex-1">
               <Label htmlFor="ac-name">Nombre</Label>
               <Input id="ac-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            </div>
+            <div className="min-w-[200px] flex-1">
+              <Label htmlFor="ac-phone">WhatsApp</Label>
+              <Input
+                id="ac-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="3001234567"
+                inputMode="tel"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Con este número recibirás los recordatorios de deudas y metas por WhatsApp.
+              </p>
             </div>
             <Button type="submit" variant="outline" disabled={saving}>Guardar</Button>
           </form>

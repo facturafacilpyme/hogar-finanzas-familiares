@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target } from "lucide-react";
+import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target, Users, AlertTriangle } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { mensajeDeuda, mensajeResumenPersona } from "@/lib/whatsapp";
+import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/_authenticated/panel")({
   head: () => ({ meta: [{ title: "Panel — HogarFin" }, { name: "description", content: "Resumen financiero familiar." }] }),
@@ -18,17 +22,24 @@ function Panel() {
   });
   const [upcoming, setUpcoming] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
+  const [porPersona, setPorPersona] = useState<any[]>([]);
+  const [alertas, setAlertas] = useState<any[]>([]);
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(async () => {
       if (!familyId) return;
-      const [{ data: debts }, { data: gl }, { data: pays }, { data: exp }, { data: contrib }] = await Promise.all([
+      const [{ data: debts }, { data: gl }, { data: pays }, { data: exp }, { data: contrib }, { data: dm }, { data: fmembers }] = await Promise.all([
         supabase.from("debts").select("*").eq("family_id", familyId),
         supabase.from("savings_goals").select("*").eq("family_id", familyId),
-        supabase.from("payments").select("amount, payment_date").eq("family_id", familyId),
+        supabase.from("payments").select("amount, payment_date, user_id, debt_id").eq("family_id", familyId),
         supabase.from("expenses").select("amount, expense_date").eq("family_id", familyId),
         supabase.from("savings_contributions").select("amount, kind, contribution_date").eq("family_id", familyId),
+        supabase.from("debt_members").select("*").eq("family_id", familyId),
+        supabase.from("family_members").select("user_id").eq("family_id", familyId),
       ]);
+      const ids = (fmembers ?? []).map((x: any) => x.user_id);
+      const { data: profs } = ids.length
+        ? await supabase.from("profiles").select("id, name, phone").in("id", ids)
+        : { data: [] as any[] };
       const now = new Date();
       const mes = (d?: string | null) =>
         !!d && new Date(d).getMonth() === now.getMonth() && new Date(d).getFullYear() === now.getFullYear();
@@ -61,8 +72,51 @@ function Panel() {
           .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))
           .slice(0, 4),
       );
-    })();
+
+      // Deuda pendiente asignada a cada persona
+      const debtById = new Map((debts ?? []).map((d: any) => [d.id, d]));
+      const resumen = (profs ?? []).map((p: any) => {
+        const filas = (dm ?? [])
+          .filter((m: any) => m.user_id === p.id)
+          .map((m: any) => {
+            const d: any = debtById.get(m.debt_id);
+            const abonado = (pays ?? [])
+              .filter((x: any) => x.debt_id === m.debt_id && x.user_id === p.id)
+              .reduce((s: number, x: any) => s + Number(x.amount), 0);
+            const assigned = Number(m.amount_assigned ?? 0);
+            return {
+              name: d?.name ?? "Deuda",
+              entity: d?.entity ?? null,
+              due_date: d?.due_date ?? null,
+              assigned,
+              paid: abonado,
+              pending: Math.max(0, assigned - abonado),
+            };
+          })
+          .filter((r: any) => r.assigned > 0);
+        const asignado = filas.reduce((s: number, r: any) => s + r.assigned, 0);
+        const abonado = filas.reduce((s: number, r: any) => s + r.paid, 0);
+        const pendiente = filas.reduce((s: number, r: any) => s + r.pending, 0);
+        return { ...p, filas, asignado, abonado, pendiente };
+      }).filter((p: any) => p.asignado > 0)
+        .sort((a: any, b: any) => b.pendiente - a.pendiente);
+      setPorPersona(resumen);
+
+      // Alertas de urgencia: deudas en mora o por vencer (<=3 días) con saldo
+      const urgentes = (debts ?? [])
+        .map((d: any) => {
+          const abonado = (pays ?? []).filter((x: any) => x.debt_id === d.id).reduce((s: number, x: any) => s + Number(x.amount), 0);
+          const pendiente = Number(d.total_amount) - abonado;
+          const dias = daysUntil(d.due_date);
+          return { debt: d, pendiente, dias };
+        })
+        .filter((x: any) => x.pendiente > 0.5 && x.dias !== null && x.dias <= 3)
+        .sort((a: any, b: any) => (a.dias ?? 0) - (b.dias ?? 0));
+      setAlertas(urgentes);
   }, [familyId]);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(familyId, load);
 
   return (
     <div className="space-y-6">
@@ -70,6 +124,34 @@ function Panel() {
         <h1 className="text-2xl font-bold">Hola, {profile?.name} 👋</h1>
         <p className="text-sm text-muted-foreground">Resumen de {familyName ?? "tu hogar"}.</p>
       </div>
+
+      {alertas.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+          <div className="flex items-center gap-2 font-semibold text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            {alertas.some((a) => (a.dias ?? 0) < 0)
+              ? "¡Atención! Hay deudas en mora"
+              : "¡Ojo! Hay deudas por vencer"}
+          </div>
+          <p className="text-xs text-destructive/90">
+            Actúa hoy para evitar intereses y recargos. Puedes avisar por WhatsApp a los responsables.
+          </p>
+          <ul className="space-y-2">
+            {alertas.slice(0, 5).map(({ debt, pendiente, dias }) => (
+              <li key={debt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background/70 p-2 text-sm">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{debt.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {debt.entity} · {formatCOP(pendiente)} pendiente ·{" "}
+                    {dias < 0 ? `en mora hace ${Math.abs(dias)}d` : dias === 0 ? "vence hoy" : `vence en ${dias}d`}
+                  </div>
+                </div>
+                <Link to="/deudas" className="text-xs font-semibold text-primary hover:underline">Ver deuda</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard icon={Wallet} label="Deuda pendiente" value={formatCOP(stats.totalDebt)} tone="primary" />
@@ -85,6 +167,82 @@ function Panel() {
           hint={`Histórico: ${formatCOP(stats.gastosTotal)}`}
         />
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Users className="h-4 w-4" /> Deuda pendiente por persona
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {porPersona.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aún no hay deudas asignadas a los miembros.</p>
+          ) : (
+            <ul className="space-y-4">
+              {porPersona.map((p) => {
+                const pct = p.asignado ? Math.min(100, (p.abonado / p.asignado) * 100) : 0;
+                const urgente = p.filas.find((f: any) => {
+                  const d = daysUntil(f.due_date);
+                  return f.pending > 0 && d !== null && d <= 3;
+                });
+                return (
+                  <li key={p.id}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatCOP(p.abonado)} / {formatCOP(p.asignado)} ·{" "}
+                        <b className={p.pendiente === 0 ? "text-success" : "text-foreground"}>
+                          {p.pendiente === 0 ? "al día" : `faltan ${formatCOP(p.pendiente)}`}
+                        </b>
+                      </span>
+                    </div>
+                    <Progress value={pct} className="mt-1 h-1.5" />
+                    {p.pendiente > 0 && (
+                      <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          {p.filas.filter((f: any) => f.pending > 0).length} deuda(s) pendiente(s)
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {urgente && (
+                            <WhatsAppButton
+                              phone={p.phone}
+                              variant="ghost"
+                              className="h-7 px-2 text-[11px]"
+                              label="Avisar urgencia"
+                              message={mensajeDeuda({
+                                nombre: p.name,
+                                deuda: urgente.name,
+                                entidad: urgente.entity,
+                                pendiente: urgente.pending,
+                                vence: urgente.due_date,
+                                dias: daysUntil(urgente.due_date),
+                                status: (daysUntil(urgente.due_date) ?? 0) < 0 ? "mora" : "por_vencer",
+                                familia: familyName,
+                              })}
+                            />
+                          )}
+                          <WhatsAppButton
+                            phone={p.phone}
+                            variant="ghost"
+                            className="h-7 px-2 text-[11px]"
+                            label="Enviar resumen"
+                            message={mensajeResumenPersona({
+                              nombre: p.name,
+                              pendienteTotal: p.pendiente,
+                              deudas: p.filas.filter((f: any) => f.pending > 0),
+                              familia: familyName,
+                            })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
