@@ -17,6 +17,9 @@ import { ProofLink } from "@/components/ProofLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { mensajeDeuda } from "@/lib/whatsapp";
+import { daysUntil } from "@/lib/currency";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
   head: () => ({
@@ -31,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/deudas")({
 });
 
 function Deudas() {
-  const { user, role, familyId } = useAuth();
+  const { user, role, familyId, familyName } = useAuth();
   const [debts, setDebts] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -125,6 +128,7 @@ function Deudas() {
               isAdmin={isAdmin}
               userId={user!.id}
               familyId={familyId!}
+              familyName={familyName}
             />
           ))}
         </div>
