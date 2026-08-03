@@ -105,6 +105,8 @@ export type Database = {
           cuota_amount: number | null
           current_cuota: number | null
           debt_type: Database["public"]["Enums"]["debt_type"]
+          document_note: string | null
+          document_url: string | null
           due_date: string | null
           entity: string
           family_id: string
@@ -127,6 +129,8 @@ export type Database = {
           cuota_amount?: number | null
           current_cuota?: number | null
           debt_type: Database["public"]["Enums"]["debt_type"]
+          document_note?: string | null
+          document_url?: string | null
           due_date?: string | null
           entity: string
           family_id: string
@@ -149,6 +153,8 @@ export type Database = {
           cuota_amount?: number | null
           current_cuota?: number | null
           debt_type?: Database["public"]["Enums"]["debt_type"]
+          document_note?: string | null
+          document_url?: string | null
           due_date?: string | null
           entity?: string
           family_id?: string
@@ -423,6 +429,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          phone: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -430,6 +437,7 @@ export type Database = {
           email: string
           id: string
           name?: string
+          phone?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -437,6 +445,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          phone?: string | null
         }
         Relationships: []
       }
