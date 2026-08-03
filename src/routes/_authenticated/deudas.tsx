@@ -534,15 +534,9 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
 
   const saldaDeuda = Number(amount || 0) >= remaining - 0.5 && Number(amount || 0) > 0;
   const responsable = breakdown.find((m: any) => m.user_id === target);
-  const pendientesOtros = breakdown.filter((m: any) => m.user_id !== target && m.pending > 0);
-  // Quien salda debe adjuntar el comprobante total salvo que el pago corresponda a otra persona.
-  const comprobanteObligatorio = saldaDeuda && pendientesOtros.length === 0;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (comprobanteObligatorio && !file) {
-      return toast.error("Al saldar la deuda debes adjuntar el comprobante del pago total");
-    }
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     let proof_url: string | null = null;
@@ -564,30 +558,25 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
     if (error) { setLoading(false); return toast.error(error.message); }
 
     if (saldaDeuda) {
-      if (comprobanteObligatorio) {
-        await supabase
-          .from("debts")
-          .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_proof_url: proof_url, settlement_due_at: null })
-          .eq("id", debt.id);
-      } else {
-        const limite = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        await supabase
-          .from("debts")
-          .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_due_at: limite })
-          .eq("id", debt.id);
-        await supabase.rpc("notify_family_admins", {
-          _family_id: familyId,
-          _type: "comprobante_pendiente",
-          _message: `La deuda "${debt.name}" quedó saldada por un abono que no corresponde al responsable. Sube el comprobante del pago total antes de 24 horas.`,
-          _related_id: debt.id,
-        });
-        toast.info("Se avisó al administrador para el comprobante del pago total (24 horas).");
-      }
+      // El comprobante del abono NUNCA sirve como comprobante de liquidación:
+      // siempre se exige aparte la evidencia del pago total de la factura.
+      const limite = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from("debts")
+        .update({ status: "pagada", settled_at: new Date().toISOString(), settlement_due_at: limite })
+        .eq("id", debt.id);
+      await supabase.rpc("notify_family_admins", {
+        _family_id: familyId,
+        _type: "comprobante_pendiente",
+        _message: `La deuda "${debt.name}" quedó saldada. Es obligatorio subir el comprobante del pago total de la factura antes de 24 horas.`,
+        _related_id: debt.id,
+      });
+      toast.info("Falta el comprobante del pago total de la factura (obligatorio, máximo 24 horas).");
     }
 
     setLoading(false);
     toast.success("Abono registrado");
-    onDone();
+    onDone(saldaDeuda);
   }
 
   return (
@@ -616,13 +605,13 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
       <div><Label>Fecha</Label><Input name="payment_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
       <div>
         <Label className="flex items-center gap-2">
-          <Upload className="h-4 w-4" /> Comprobante {comprobanteObligatorio ? "(obligatorio)" : "(opcional)"}
+          <Upload className="h-4 w-4" /> Comprobante del abono (opcional)
         </Label>
         <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        {saldaDeuda && !comprobanteObligatorio && (
+        {saldaDeuda && (
           <p className="mt-1 text-xs text-warning-foreground">
-            Este abono salda la deuda pero quedan responsables pendientes: se avisará al administrador para subir el
-            comprobante del pago total en máximo 24 horas.
+            Este abono salda la deuda: a continuación deberás adjuntar el <b>comprobante del pago total de la factura</b>
+            {" "}(obligatorio). También se avisará al administrador con un plazo de 24 horas.
           </p>
         )}
       </div>
