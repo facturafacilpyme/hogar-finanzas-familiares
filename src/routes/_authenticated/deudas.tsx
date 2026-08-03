@@ -285,7 +285,11 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
               remaining={remaining}
               userId={userId}
               familyId={familyId}
-              onDone={() => { setOpenPay(false); onChange(); }}
+              onDone={(saldo?: boolean) => {
+                setOpenPay(false);
+                onChange();
+                if (saldo) setOpenProof(true);
+              }}
             />
           </DialogContent>
         </Dialog>
