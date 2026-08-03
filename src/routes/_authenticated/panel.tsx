@@ -168,6 +168,82 @@ function Panel() {
         />
       </div>
 
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Users className="h-4 w-4" /> Deuda pendiente por persona
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {porPersona.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aún no hay deudas asignadas a los miembros.</p>
+          ) : (
+            <ul className="space-y-4">
+              {porPersona.map((p) => {
+                const pct = p.asignado ? Math.min(100, (p.abonado / p.asignado) * 100) : 0;
+                const urgente = p.filas.find((f: any) => {
+                  const d = daysUntil(f.due_date);
+                  return f.pending > 0 && d !== null && d <= 3;
+                });
+                return (
+                  <li key={p.id}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatCOP(p.abonado)} / {formatCOP(p.asignado)} ·{" "}
+                        <b className={p.pendiente === 0 ? "text-success" : "text-foreground"}>
+                          {p.pendiente === 0 ? "al día" : `faltan ${formatCOP(p.pendiente)}`}
+                        </b>
+                      </span>
+                    </div>
+                    <Progress value={pct} className="mt-1 h-1.5" />
+                    {p.pendiente > 0 && (
+                      <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          {p.filas.filter((f: any) => f.pending > 0).length} deuda(s) pendiente(s)
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {urgente && (
+                            <WhatsAppButton
+                              phone={p.phone}
+                              variant="ghost"
+                              className="h-7 px-2 text-[11px]"
+                              label="Avisar urgencia"
+                              message={mensajeDeuda({
+                                nombre: p.name,
+                                deuda: urgente.name,
+                                entidad: urgente.entity,
+                                pendiente: urgente.pending,
+                                vence: urgente.due_date,
+                                dias: daysUntil(urgente.due_date),
+                                status: (daysUntil(urgente.due_date) ?? 0) < 0 ? "mora" : "por_vencer",
+                                familia: familyName,
+                              })}
+                            />
+                          )}
+                          <WhatsAppButton
+                            phone={p.phone}
+                            variant="ghost"
+                            className="h-7 px-2 text-[11px]"
+                            label="Enviar resumen"
+                            message={mensajeResumenPersona({
+                              nombre: p.name,
+                              pendienteTotal: p.pendiente,
+                              deudas: p.filas.filter((f: any) => f.pending > 0),
+                              familia: familyName,
+                            })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -175,7 +251,6 @@ function Panel() {
               <AlertCircle className="h-4 w-4" /> Próximos pagos
             </CardTitle>
           </CardHeader>
-
           <CardContent>
             {upcoming.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sin pagos próximos.</p>
