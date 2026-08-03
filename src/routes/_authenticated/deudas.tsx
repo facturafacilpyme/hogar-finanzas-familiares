@@ -137,7 +137,7 @@ function Deudas() {
   );
 }
 
-function DebtCard({ debt, status, members, profiles, payments, onChange, canPay, isAdmin, userId, familyId }: any) {
+function DebtCard({ debt, status, members, profiles, payments, onChange, canPay, isAdmin, userId, familyId, familyName }: any) {
   const paid = sum(payments);
   const remaining = Math.max(0, Number(debt.total_amount) - paid);
   const pct = Number(debt.total_amount) ? Math.min(100, (paid / Number(debt.total_amount)) * 100) : 0;
@@ -147,6 +147,8 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
   const meta = STATUS_META[status as keyof typeof STATUS_META];
   const breakdown = memberBreakdown(members, payments);
   const nameOf = (id: string) => profiles.find((p: any) => p.id === id)?.name ?? "?";
+  const profOf = (id: string) => profiles.find((p: any) => p.id === id);
+  const dias = daysUntil(debt.due_date);
 
   const necesitaComprobante = status === "pagada" && !debt.settlement_proof_url;
   const vence = debt.settlement_due_at ? new Date(debt.settlement_due_at) : null;
@@ -192,6 +194,26 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
                   </span>
                 </div>
                 <Progress value={m.pct} className="mt-1 h-1.5" />
+                {m.pending > 0 && (
+                  <div className="mt-1 flex justify-end">
+                    <WhatsAppButton
+                      phone={profOf(m.user_id)?.phone}
+                      variant="ghost"
+                      label="Recordar por WhatsApp"
+                      className="h-7 px-2 text-[11px]"
+                      message={mensajeDeuda({
+                        nombre: nameOf(m.user_id),
+                        deuda: debt.name,
+                        entidad: debt.entity,
+                        pendiente: m.pending,
+                        vence: debt.due_date,
+                        dias,
+                        status: status as any,
+                        familia: familyName,
+                      })}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -213,6 +235,13 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
         {debt.settlement_proof_url && (
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             Pago total de la factura: <ProofLink path={debt.settlement_proof_url} label="Ver comprobante" />
+          </div>
+        )}
+
+        {debt.document_url && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            Soporte de la deuda{debt.document_note ? ` (${debt.document_note})` : ""}:{" "}
+            <ProofLink path={debt.document_url} label="Ver extracto/factura" />
           </div>
         )}
 
@@ -330,6 +359,7 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
   const [type, setType] = useState<"unico" | "cuotas">(debt?.debt_type ?? "unico");
   const [split, setSplit] = useState<"porcentaje" | "fijo">("fijo");
   const [total, setTotal] = useState<string>(debt ? String(debt.total_amount) : "");
+  const [docFile, setDocFile] = useState<File | null>(null);
   const [assign, setAssign] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     existingMembers.forEach((m: any) => { init[m.user_id] = String(Number(m.amount_assigned ?? 0)); });
@@ -349,6 +379,15 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
     }
     setLoading(true);
     const totalCuotas = type === "cuotas" ? Number(fd.get("total_cuotas")) : null;
+    let documentUrl: string | null = debt?.document_url ?? null;
+    if (docFile) {
+      try {
+        documentUrl = await uploadProof(userId, docFile);
+      } catch (err: any) {
+        setLoading(false);
+        return toast.error(err.message ?? "No se pudo subir el soporte de la deuda");
+      }
+    }
     const payload = {
       name: String(fd.get("name")),
       entity: String(fd.get("entity")),
@@ -358,6 +397,8 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
       cuota_amount: type === "cuotas" && totalCuotas ? totalN / totalCuotas : null,
       due_date: String(fd.get("due_date")) || null,
       notes: String(fd.get("notes") || "") || null,
+      document_url: documentUrl,
+      document_note: String(fd.get("document_note") || "") || null,
       family_id: familyId,
     };
 
@@ -412,6 +453,25 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
       )}
       <div><Label>Fecha de vencimiento</Label><Input name="due_date" type="date" defaultValue={debt?.due_date ?? ""} /></div>
       <div><Label>Notas</Label><Textarea name="notes" defaultValue={debt?.notes ?? ""} /></div>
+
+      <div className="rounded-lg border p-3">
+        <Label className="flex items-center gap-2">
+          <Upload className="h-4 w-4" /> Soporte de la deuda (extracto, factura o similar)
+        </Label>
+        <Input
+          type="file"
+          accept="image/*,application/pdf"
+          className="mt-2"
+          onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+        />
+        <Input name="document_note" className="mt-2" placeholder="Descripción del soporte (opcional)" defaultValue={debt?.document_note ?? ""} />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Sustenta los valores asignados a cada responsable. Queda visible para toda la familia y en el historial.
+        </p>
+        {editing && debt?.document_url && !docFile && (
+          <p className="mt-1 text-xs text-muted-foreground">Ya hay un soporte adjunto; sube otro para reemplazarlo.</p>
+        )}
+      </div>
 
       <div className="rounded-lg border p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
