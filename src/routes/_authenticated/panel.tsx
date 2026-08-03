@@ -125,6 +125,34 @@ function Panel() {
         <p className="text-sm text-muted-foreground">Resumen de {familyName ?? "tu hogar"}.</p>
       </div>
 
+      {alertas.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+          <div className="flex items-center gap-2 font-semibold text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            {alertas.some((a) => (a.dias ?? 0) < 0)
+              ? "¡Atención! Hay deudas en mora"
+              : "¡Ojo! Hay deudas por vencer"}
+          </div>
+          <p className="text-xs text-destructive/90">
+            Actúa hoy para evitar intereses y recargos. Puedes avisar por WhatsApp a los responsables.
+          </p>
+          <ul className="space-y-2">
+            {alertas.slice(0, 5).map(({ debt, pendiente, dias }) => (
+              <li key={debt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background/70 p-2 text-sm">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{debt.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {debt.entity} · {formatCOP(pendiente)} pendiente ·{" "}
+                    {dias < 0 ? `en mora hace ${Math.abs(dias)}d` : dias === 0 ? "vence hoy" : `vence en ${dias}d`}
+                  </div>
+                </div>
+                <Link to="/deudas" className="text-xs font-semibold text-primary hover:underline">Ver deuda</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard icon={Wallet} label="Deuda pendiente" value={formatCOP(stats.totalDebt)} tone="primary" />
         <StatCard icon={HandCoins} label="Abonos este mes" value={formatCOP(stats.abonosMes)} tone="success" />
