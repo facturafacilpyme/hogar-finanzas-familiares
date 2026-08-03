@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target } from "lucide-react";
+import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target, Users, AlertTriangle } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { mensajeDeuda, mensajeResumenPersona } from "@/lib/whatsapp";
+import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/_authenticated/panel")({
   head: () => ({ meta: [{ title: "Panel — HogarFin" }, { name: "description", content: "Resumen financiero familiar." }] }),
@@ -18,17 +22,24 @@ function Panel() {
   });
   const [upcoming, setUpcoming] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
+  const [porPersona, setPorPersona] = useState<any[]>([]);
+  const [alertas, setAlertas] = useState<any[]>([]);
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(async () => {
       if (!familyId) return;
-      const [{ data: debts }, { data: gl }, { data: pays }, { data: exp }, { data: contrib }] = await Promise.all([
+      const [{ data: debts }, { data: gl }, { data: pays }, { data: exp }, { data: contrib }, { data: dm }, { data: fmembers }] = await Promise.all([
         supabase.from("debts").select("*").eq("family_id", familyId),
         supabase.from("savings_goals").select("*").eq("family_id", familyId),
-        supabase.from("payments").select("amount, payment_date").eq("family_id", familyId),
+        supabase.from("payments").select("amount, payment_date, user_id, debt_id").eq("family_id", familyId),
         supabase.from("expenses").select("amount, expense_date").eq("family_id", familyId),
         supabase.from("savings_contributions").select("amount, kind, contribution_date").eq("family_id", familyId),
+        supabase.from("debt_members").select("*").eq("family_id", familyId),
+        supabase.from("family_members").select("user_id").eq("family_id", familyId),
       ]);
+      const ids = (fmembers ?? []).map((x: any) => x.user_id);
+      const { data: profs } = ids.length
+        ? await supabase.from("profiles").select("id, name, phone").in("id", ids)
+        : { data: [] as any[] };
       const now = new Date();
       const mes = (d?: string | null) =>
         !!d && new Date(d).getMonth() === now.getMonth() && new Date(d).getFullYear() === now.getFullYear();
@@ -61,8 +72,51 @@ function Panel() {
           .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))
           .slice(0, 4),
       );
-    })();
+
+      // Deuda pendiente asignada a cada persona
+      const debtById = new Map((debts ?? []).map((d: any) => [d.id, d]));
+      const resumen = (profs ?? []).map((p: any) => {
+        const filas = (dm ?? [])
+          .filter((m: any) => m.user_id === p.id)
+          .map((m: any) => {
+            const d: any = debtById.get(m.debt_id);
+            const abonado = (pays ?? [])
+              .filter((x: any) => x.debt_id === m.debt_id && x.user_id === p.id)
+              .reduce((s: number, x: any) => s + Number(x.amount), 0);
+            const assigned = Number(m.amount_assigned ?? 0);
+            return {
+              name: d?.name ?? "Deuda",
+              entity: d?.entity ?? null,
+              due_date: d?.due_date ?? null,
+              assigned,
+              paid: abonado,
+              pending: Math.max(0, assigned - abonado),
+            };
+          })
+          .filter((r: any) => r.assigned > 0);
+        const asignado = filas.reduce((s: number, r: any) => s + r.assigned, 0);
+        const abonado = filas.reduce((s: number, r: any) => s + r.paid, 0);
+        const pendiente = filas.reduce((s: number, r: any) => s + r.pending, 0);
+        return { ...p, filas, asignado, abonado, pendiente };
+      }).filter((p: any) => p.asignado > 0)
+        .sort((a: any, b: any) => b.pendiente - a.pendiente);
+      setPorPersona(resumen);
+
+      // Alertas de urgencia: deudas en mora o por vencer (<=3 días) con saldo
+      const urgentes = (debts ?? [])
+        .map((d: any) => {
+          const abonado = (pays ?? []).filter((x: any) => x.debt_id === d.id).reduce((s: number, x: any) => s + Number(x.amount), 0);
+          const pendiente = Number(d.total_amount) - abonado;
+          const dias = daysUntil(d.due_date);
+          return { debt: d, pendiente, dias };
+        })
+        .filter((x: any) => x.pendiente > 0.5 && x.dias !== null && x.dias <= 3)
+        .sort((a: any, b: any) => (a.dias ?? 0) - (b.dias ?? 0));
+      setAlertas(urgentes);
   }, [familyId]);
+
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(familyId, load);
 
   return (
     <div className="space-y-6">
