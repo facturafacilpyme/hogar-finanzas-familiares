@@ -175,6 +175,7 @@ function Panel() {
               <AlertCircle className="h-4 w-4" /> Próximos pagos
             </CardTitle>
           </CardHeader>
+
           <CardContent>
             {upcoming.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sin pagos próximos.</p>
