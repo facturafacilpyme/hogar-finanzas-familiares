@@ -46,7 +46,7 @@ function Miembros() {
     ]);
     const ids = (m ?? []).map((x: any) => x.user_id);
     const { data: profs } = ids.length
-      ? await supabase.from("profiles").select("id, name, email").in("id", ids)
+      ? await supabase.from("profiles").select("id, name, email, phone").in("id", ids)
       : { data: [] as any[] };
     setMembers((m ?? []).map((x: any) => ({ ...x, profiles: (profs ?? []).find((p: any) => p.id === x.user_id) ?? null })));
     setInvites(inv ?? []);

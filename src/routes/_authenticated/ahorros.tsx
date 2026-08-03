@@ -49,7 +49,7 @@ function Ahorros() {
     ]);
     const ids = (fm ?? []).map((x: any) => x.user_id);
     const { data: profs } = ids.length
-      ? await supabase.from("profiles").select("id, name, email").in("id", ids)
+      ? await supabase.from("profiles").select("id, name, email, phone").in("id", ids)
       : { data: [] as any[] };
     setGoals(g ?? []);
     setGoalMembers(gm ?? []);
