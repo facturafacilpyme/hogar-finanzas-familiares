@@ -18,6 +18,8 @@ import { ProofLink } from "@/components/ProofLink";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { mensajeAhorro } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/ahorros")({
   head: () => ({
@@ -32,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/ahorros")({
 });
 
 function Ahorros() {
-  const { user, role, familyId } = useAuth();
+  const { user, role, familyId, familyName } = useAuth();
   const [goals, setGoals] = useState<any[]>([]);
   const [goalMembers, setGoalMembers] = useState<any[]>([]);
   const [contribs, setContribs] = useState<any[]>([]);
@@ -111,6 +113,7 @@ function Ahorros() {
                   isAdmin={isAdmin}
                   userId={user!.id}
                   familyId={familyId!}
+                  familyName={familyName}
                   onChange={load}
                 />
               ))}
