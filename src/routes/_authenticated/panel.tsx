@@ -134,19 +134,23 @@ function Panel() {
               : "¡Ojo! Hay deudas por vencer"}
           </div>
           <p className="text-xs text-destructive/90">
-            Actúa hoy para evitar intereses y recargos. Puedes avisar por WhatsApp a los responsables.
+            {role === "admin"
+              ? "Actúa hoy para evitar intereses y recargos. Puedes avisar por WhatsApp a los responsables."
+              : role === "invitado"
+                ? "Estas obligaciones del hogar necesitan atención. Como invitado solo puedes consultarlas; avisa al administrador si notas algo."
+                : "Revisa si alguna de estas deudas es tuya y registra tu abono hoy para evitar intereses y recargos."}
           </p>
           <ul className="space-y-2">
             {alertas.slice(0, 5).map(({ debt, pendiente, dias }) => (
               <li key={debt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background/70 p-2 text-sm">
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{debt.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <div className="break-words font-medium">{debt.name}</div>
+                  <div className="break-words text-xs text-muted-foreground">
                     {debt.entity} · {formatCOP(pendiente)} pendiente ·{" "}
                     {dias < 0 ? `en mora hace ${Math.abs(dias)}d` : dias === 0 ? "vence hoy" : `vence en ${dias}d`}
                   </div>
                 </div>
-                <Link to="/deudas" className="text-xs font-semibold text-primary hover:underline">Ver deuda</Link>
+                <Link to="/deudas" className="shrink-0 text-xs font-semibold text-primary hover:underline">Ver deuda</Link>
               </li>
             ))}
           </ul>
@@ -188,8 +192,8 @@ function Panel() {
                 return (
                   <li key={p.id}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="min-w-0 break-words text-sm font-medium">{p.name}</span>
+                      <span className="break-words text-xs text-muted-foreground">
                         {formatCOP(p.abonado)} / {formatCOP(p.asignado)} ·{" "}
                         <b className={p.pendiente === 0 ? "text-success" : "text-foreground"}>
                           {p.pendiente === 0 ? "al día" : `faltan ${formatCOP(p.pendiente)}`}
@@ -260,9 +264,9 @@ function Panel() {
                   const days = daysUntil(d.due_date);
                   return (
                     <li key={d.id} className="flex items-center justify-between gap-2 py-3">
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{d.name}</div>
-                        <div className="truncate text-xs text-muted-foreground">{d.entity} · {formatDate(d.due_date)}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="break-words font-medium">{d.name}</div>
+                        <div className="break-words text-xs text-muted-foreground">{d.entity} · {formatDate(d.due_date)}</div>
                       </div>
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
                         days !== null && days < 0 ? "bg-destructive/15 text-destructive"
@@ -295,7 +299,7 @@ function Panel() {
                   return (
                     <li key={g.id} className="py-3">
                       <div className="flex items-center justify-between gap-2 text-sm">
-                        <Link to="/ahorros" className="min-w-0 truncate font-medium hover:underline">{g.name}</Link>
+                        <Link to="/ahorros" className="min-w-0 break-words font-medium hover:underline">{g.name}</Link>
                         <span className="shrink-0 text-xs text-muted-foreground">
                           {formatCOP(g.current_amount)} / {formatCOP(g.target_amount)}
                         </span>
@@ -335,7 +339,7 @@ function StatCard({ icon: Icon, label, value, tone, hint }: { icon: any; label: 
         </div>
         <div className="min-w-0">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-          <div className="truncate text-xl font-bold">{value}</div>
+          <div className="break-words text-xl font-bold leading-tight">{value}</div>
           {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
         </div>
       </CardContent>
