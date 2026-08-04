@@ -173,8 +173,8 @@ function Reportes() {
     if (!rows.length) return;
     const base = `${tipo}-${f}`;
     const titulo = `${tipo[0].toUpperCase()}${tipo.slice(1)} — ${familyName ?? "Familia"}`;
-    if (formato === "excel") exportExcel(base, rows, titulo);
-    else if (formato === "pdf") exportPDF(base, rows, titulo);
+    if (formato === "excel") exportExcel(base, [{ name: tipo, rows }]);
+    else if (formato === "pdf") exportPDF({ filename: base, title: titulo, tables: [{ name: tipo, rows }] });
     else exportCSV(base, rows);
   }
 
@@ -189,8 +189,8 @@ function Reportes() {
       { Concepto: "Metas de ahorro", Valor: totales.metas },
     ];
     const titulo = `Balance general — ${familyName ?? "Familia"}`;
-    if (formato === "excel") exportExcel(`balance-${f}`, rows, titulo);
-    else if (formato === "pdf") exportPDF(`balance-${f}`, rows, titulo);
+    if (formato === "excel") exportExcel(`balance-${f}`, [{ name: "Balance", rows }]);
+    else if (formato === "pdf") exportPDF({ filename: `balance-${f}`, title: titulo, tables: [{ name: "Balance", rows }] });
     else exportCSV(`balance-${f}`, rows);
   }
 
