@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/currency";
 import { useServerFn } from "@tanstack/react-start";
 import { purgeFamilyMember } from "@/lib/admin.functions";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/miembros")({
   head: () => ({ meta: [{ title: "Miembros — HogarFin" }, { name: "description", content: "Gestión de miembros de tu familia." }] }),
@@ -33,6 +34,7 @@ function Miembros() {
   const [invEmail, setInvEmail] = useState("");
   const [phones, setPhones] = useState<Record<string, string>>({});
   const purge = useServerFn(purgeFamilyMember);
+  const confirmar = useConfirm();
 
   useEffect(() => {
     if (role !== null && role !== "admin") nav({ to: "/panel" });
