@@ -16,6 +16,7 @@ import { uploadProof } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/abonos")({
   head: () => ({
@@ -38,6 +39,7 @@ function Abonos() {
   const [member, setMember] = useState("todos");
   const [debt, setDebt] = useState("todas");
   const [editing, setEditing] = useState<any>(null);
+  const confirmar = useConfirm();
 
   const load = useCallback(async () => {
     if (!familyId) return;
@@ -88,7 +90,13 @@ function Abonos() {
   }, [filtered]);
 
   async function borrar(p: any) {
-    if (!confirm("¿Eliminar este abono? El saldo de la deuda se recalculará.")) return;
+    const ok = await confirmar({
+      title: "Eliminar abono",
+      description: `Se eliminará el abono de ${formatCOP(p.amount)}. El saldo de la deuda se recalculará automáticamente.`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from("payments").delete().eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success("Abono eliminado");
@@ -110,7 +118,7 @@ function Abonos() {
             </div>
             <div className="min-w-0">
               <div className="text-xs uppercase text-muted-foreground">Total abonado</div>
-              <div className="truncate text-xl font-bold">{formatCOP(total)}</div>
+              <div className="break-words text-xl font-bold leading-tight">{formatCOP(total)}</div>
             </div>
           </CardContent>
         </Card>
@@ -160,13 +168,13 @@ function Abonos() {
                 const puede = isAdmin || p.created_by === user?.id || p.user_id === user?.id;
                 return (
                   <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{debtOf(p.debt_id)?.name ?? "Deuda"}</div>
-                      <div className="truncate text-xs text-muted-foreground">
+                    <div className="min-w-0 flex-1 basis-[220px]">
+                      <div className="break-words font-medium">{debtOf(p.debt_id)?.name ?? "Deuda"}</div>
+                      <div className="break-words text-xs text-muted-foreground">
                         {nameOf(p.user_id)} · {formatDate(p.payment_date)}
                         {debtOf(p.debt_id)?.entity ? ` · ${debtOf(p.debt_id)?.entity}` : ""}
                       </div>
-                      {p.notes && <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.notes}</div>}
+                      {p.notes && <div className="mt-0.5 break-words text-xs text-muted-foreground">{p.notes}</div>}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <ProofLink path={p.proof_url} />
