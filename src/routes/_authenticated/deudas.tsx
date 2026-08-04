@@ -346,6 +346,9 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
             <SettlementProofForm
               debt={debt}
               userId={userId}
+              familyId={familyId}
+              profiles={profiles}
+              enMora={status === "mora" || (dias !== null && dias < 0)}
               onDone={() => { setOpenProof(false); onChange(); }}
             />
           </DialogContent>
@@ -355,9 +358,11 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
   );
 }
 
-function SettlementProofForm({ debt, userId, onDone }: any) {
+function SettlementProofForm({ debt, userId, familyId, profiles, enMora, onDone }: any) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [interes, setInteres] = useState("");
+  const [responsable, setResponsable] = useState<string>(userId);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -370,6 +375,28 @@ function SettlementProofForm({ debt, userId, onDone }: any) {
         .update({ settlement_proof_url: path, settlement_due_at: null, status: "pagada" })
         .eq("id", debt.id);
       if (error) throw error;
+
+      const valorInteres = Number(interes || 0);
+      if (valorInteres > 0) {
+        const { error: expErr, queued } = await queuedWrite({
+          table: "expenses",
+          op: "insert",
+          label: "Gasto por intereses de mora",
+          payload: {
+            amount: valorInteres,
+            category: "otros",
+            description: `Pago de intereses por mora de la deuda "${debt.name}"${debt.entity ? ` (${debt.entity})` : ""} — responsable del pago: ${
+              profiles?.find((p: any) => p.id === responsable)?.name ?? "miembro"
+            }`,
+            expense_date: new Date().toISOString().slice(0, 10),
+            paid_by: responsable,
+            family_id: familyId,
+          },
+        });
+        if (expErr) toast.error(expErr.message ?? "No se pudo registrar el interés en caja menor");
+        else toast.success(queued ? "Interés guardado y pendiente de sincronizar" : "Interés por mora registrado en Caja Menor (categoría otros)");
+      }
+
       toast.success("Comprobante guardado");
       onDone();
     } catch (err: any) {
@@ -385,6 +412,36 @@ function SettlementProofForm({ debt, userId, onDone }: any) {
         Adjunta la evidencia del pago total de la factura de <b>{debt.name}</b>. Quedará disponible en el historial.
       </p>
       <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+
+      <div className="space-y-2 rounded-lg border p-3">
+        <Label className="text-sm">
+          Interés por mora pagado <span className="text-muted-foreground">(opcional{enMora ? ", esta deuda estuvo en mora" : ""})</span>
+        </Label>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0"
+          value={interes}
+          onChange={(e) => setInteres(e.target.value)}
+        />
+        {Number(interes || 0) > 0 && (
+          <div>
+            <Label className="text-xs">Responsable del pago del interés</Label>
+            <Select value={responsable} onValueChange={setResponsable}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(profiles ?? []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Si registras un valor, se crea automáticamente un gasto en <b>Caja Menor</b> (categoría <b>otros</b>) con el
+          concepto de pago de intereses por la deuda en mora a nombre del responsable.
+        </p>
+      </div>
+
       <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Guardando…" : "Guardar comprobante"}</Button></DialogFooter>
     </form>
   );
