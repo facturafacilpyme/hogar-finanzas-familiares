@@ -169,6 +169,7 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
   const [openPay, setOpenPay] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openProof, setOpenProof] = useState(false);
+  const confirmar = useConfirm();
   const meta = STATUS_META[status as keyof typeof STATUS_META];
   const breakdown = memberBreakdown(members, payments);
   const nameOf = (id: string) => profiles.find((p: any) => p.id === id)?.name ?? "?";
@@ -210,8 +211,8 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
             {breakdown.map((m: any) => (
               <div key={m.id}>
                 <div className="flex flex-wrap justify-between gap-1 text-xs">
-                  <span className="min-w-0 truncate">{nameOf(m.user_id)}</span>
-                  <span className="text-muted-foreground">
+                  <span className="min-w-0 break-words">{nameOf(m.user_id)}</span>
+                  <span className="break-words text-muted-foreground">
                     {formatCOP(m.paid)} / {formatCOP(m.assigned)} ·{" "}
                     <b className={m.pending === 0 ? "text-success" : "text-foreground"}>
                       {m.pending === 0 ? "al día" : `faltan ${formatCOP(m.pending)}`}
@@ -286,7 +287,13 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
                   variant="ghost"
                   className="text-destructive"
                   onClick={async () => {
-                    if (!confirm("¿Eliminar esta deuda y todos sus abonos?")) return;
+                    const ok = await confirmar({
+                      title: "Eliminar deuda",
+                      description: `Se eliminará "${debt.name}" y todos sus abonos. Esta acción no se puede deshacer.`,
+                      confirmText: "Eliminar",
+                      destructive: true,
+                    });
+                    if (!ok) return;
                     const { error } = await supabase.from("debts").delete().eq("id", debt.id);
                     if (error) return toast.error(error.message);
                     toast.success("Deuda eliminada");
