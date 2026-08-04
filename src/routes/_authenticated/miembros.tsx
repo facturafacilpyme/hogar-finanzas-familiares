@@ -81,7 +81,13 @@ function Miembros() {
 
   async function removeMember(m: any) {
     if (!familyId) return;
-    if (!confirm(`¿Eliminar a ${m.profiles?.name ?? "este miembro"} de la familia? Su cuenta se borra por completo y podrá registrarse de nuevo.`)) return;
+    const ok = await confirmar({
+      title: "Eliminar miembro",
+      description: `Se eliminará a ${m.profiles?.name ?? "este miembro"} de la familia y su cuenta se borrará por completo. Podrá registrarse de nuevo más adelante.`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await purge({ data: { familyId, userId: m.user_id } });
       toast.success("Miembro eliminado por completo");
