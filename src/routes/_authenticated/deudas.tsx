@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { mensajeDeuda } from "@/lib/whatsapp";
 import { daysUntil } from "@/lib/currency";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { queuedWrite } from "@/lib/syncQueue";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
   head: () => ({
@@ -40,6 +42,7 @@ function Deudas() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [orden, setOrden] = useState<string>("fecha");
   const [openNew, setOpenNew] = useState(false);
 
   const load = useCallback(async () => {
@@ -69,11 +72,22 @@ function Deudas() {
     () => debts.map((d) => ({ debt: d, status: debtStatus(d, payments.filter((p) => p.debt_id === d.id)) })),
     [debts, payments],
   );
-  const filtered = withStatus.filter(({ status }) => {
-    if (filterStatus === "todos") return true;
-    if (filterStatus === "activa") return status === "activa" || status === "por_vencer";
-    return status === filterStatus;
-  });
+  const filtered = useMemo(() => {
+    const base = withStatus.filter(({ status }) => {
+      if (filterStatus === "todos") return true;
+      if (filterStatus === "activa") return status === "activa" || status === "por_vencer";
+      return status === filterStatus;
+    });
+    const cmp: Record<string, (a: any, b: any) => number> = {
+      alfabetico: (a, b) => String(a.debt.name).localeCompare(String(b.debt.name), "es", { sensitivity: "base" }),
+      alfabetico_desc: (a, b) => String(b.debt.name).localeCompare(String(a.debt.name), "es", { sensitivity: "base" }),
+      fecha: (a, b) => (a.debt.due_date ?? "9999-12-31").localeCompare(b.debt.due_date ?? "9999-12-31"),
+      fecha_desc: (a, b) => (b.debt.due_date ?? "0000-01-01").localeCompare(a.debt.due_date ?? "0000-01-01"),
+      valor_desc: (a, b) => Number(b.debt.total_amount) - Number(a.debt.total_amount),
+      valor: (a, b) => Number(a.debt.total_amount) - Number(b.debt.total_amount),
+    };
+    return [...base].sort(cmp[orden] ?? cmp.fecha);
+  }, [withStatus, filterStatus, orden]);
 
   return (
     <div className="w-full min-w-0 space-y-4">
@@ -82,7 +96,7 @@ function Deudas() {
           <h1 className="text-2xl font-bold">Deudas</h1>
           <p className="text-sm text-muted-foreground">Todas las obligaciones del hogar.</p>
         </div>
-        <div className="flex w-full gap-2 sm:w-auto">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="min-w-0 flex-1 sm:w-40 sm:flex-none"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -91,6 +105,17 @@ function Deudas() {
               <SelectItem value="por_vencer">Por vencer</SelectItem>
               <SelectItem value="mora">En mora</SelectItem>
               <SelectItem value="pagada">Pagadas</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={orden} onValueChange={setOrden}>
+            <SelectTrigger className="min-w-0 flex-1 sm:w-52 sm:flex-none"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fecha">Fecha de vencimiento (próxima)</SelectItem>
+              <SelectItem value="fecha_desc">Fecha de vencimiento (lejana)</SelectItem>
+              <SelectItem value="alfabetico">Nombre A → Z</SelectItem>
+              <SelectItem value="alfabetico_desc">Nombre Z → A</SelectItem>
+              <SelectItem value="valor_desc">Valor total (mayor)</SelectItem>
+              <SelectItem value="valor">Valor total (menor)</SelectItem>
             </SelectContent>
           </Select>
           {isAdmin && (
