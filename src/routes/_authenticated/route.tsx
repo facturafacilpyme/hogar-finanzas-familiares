@@ -102,8 +102,8 @@ function AuthedLayout() {
             <div className="flex items-center gap-2 px-2 py-2">
               <img src="/favicon.ico" alt="Logo de HogarFin" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
               <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                <div className="truncate font-display font-bold">HogarFin</div>
-                <div className="truncate text-xs text-muted-foreground">
+                <div className="font-display font-bold">HogarFin</div>
+                <div className="break-words text-xs leading-tight text-muted-foreground">
                   {profile?.name}
                   {familyName ? ` · ${familyName}` : ""}
                 </div>
