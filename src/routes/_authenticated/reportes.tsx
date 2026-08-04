@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
+import { exportExcel, exportPDF, exportCSV } from "@/lib/exporters";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -46,6 +48,7 @@ function downloadCSV(filename: string, rows: Record<string, any>[]) {
 
 function Reportes() {
   const { familyId, familyName } = useAuth();
+  const [formato, setFormato] = useState<"excel" | "pdf" | "csv">("excel");
   const [data, setData] = useState<any>({ debts: [], dm: [], pays: [], exp: [], goals: [], contrib: [], profiles: [] });
 
   useEffect(() => {
@@ -141,27 +144,54 @@ function Reportes() {
     return [...m.entries()].map(([name, value]) => ({ name, value }));
   }, [data]);
 
-  function exportar(tipo: string) {
-    const f = (familyName ?? "familia").replace(/\s+/g, "-").toLowerCase();
+  function filasDe(tipo: string): Record<string, any>[] {
     if (tipo === "deudas")
-      downloadCSV(`deudas-${f}.csv`, data.debts.map((d: any) => ({
+      return data.debts.map((d: any) => ({
         Deuda: d.name, Entidad: d.entity, Total: d.total_amount, Estado: d.status, Vence: d.due_date ?? "",
-      })));
+      }));
     if (tipo === "abonos")
-      downloadCSV(`abonos-${f}.csv`, data.pays.map((p: any) => ({
+      return data.pays.map((p: any) => ({
         Fecha: formatDate(p.payment_date), Persona: nameOf(p.user_id),
         Deuda: data.debts.find((d: any) => d.id === p.debt_id)?.name ?? "", Monto: p.amount, Nota: p.notes ?? "",
-      })));
+      }));
     if (tipo === "gastos")
-      downloadCSV(`gastos-${f}.csv`, data.exp.map((e: any) => ({
+      return data.exp.map((e: any) => ({
         Fecha: formatDate(e.expense_date), Categoria: e.category, Descripcion: e.description ?? "",
         Persona: nameOf(e.paid_by), Monto: e.amount,
-      })));
+      }));
     if (tipo === "ahorros")
-      downloadCSV(`ahorros-${f}.csv`, data.contrib.map((c: any) => ({
+      return data.contrib.map((c: any) => ({
         Fecha: formatDate(c.contribution_date), Meta: data.goals.find((g: any) => g.id === c.goal_id)?.name ?? "",
         Persona: nameOf(c.user_id), Tipo: c.kind, Monto: c.amount,
-      })));
+      }));
+    return [];
+  }
+
+  function exportar(tipo: string) {
+    const f = (familyName ?? "familia").replace(/\s+/g, "-").toLowerCase();
+    const rows = filasDe(tipo);
+    if (!rows.length) return;
+    const base = `${tipo}-${f}`;
+    const titulo = `${tipo[0].toUpperCase()}${tipo.slice(1)} — ${familyName ?? "Familia"}`;
+    if (formato === "excel") exportExcel(base, rows, titulo);
+    else if (formato === "pdf") exportPDF(base, rows, titulo);
+    else exportCSV(base, rows);
+  }
+
+  function exportarBalance() {
+    const f = (familyName ?? "familia").replace(/\s+/g, "-").toLowerCase();
+    const rows = [
+      { Concepto: "Deuda total", Valor: totales.deuda },
+      { Concepto: "Abonado", Valor: totales.abonado },
+      { Concepto: "Pendiente", Valor: totales.pendiente },
+      { Concepto: "Gastos caja menor", Valor: totales.gastos },
+      { Concepto: "Ahorrado", Valor: totales.ahorrado },
+      { Concepto: "Metas de ahorro", Valor: totales.metas },
+    ];
+    const titulo = `Balance general — ${familyName ?? "Familia"}`;
+    if (formato === "excel") exportExcel(`balance-${f}`, rows, titulo);
+    else if (formato === "pdf") exportPDF(`balance-${f}`, rows, titulo);
+    else exportCSV(`balance-${f}`, rows);
   }
 
   return (
@@ -171,7 +201,18 @@ function Reportes() {
           <h1 className="text-2xl font-bold">Reportes</h1>
           <p className="text-sm text-muted-foreground">Análisis financiero de {familyName ?? "tu hogar"}.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={formato} onValueChange={(v) => setFormato(v as any)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="excel">Excel</SelectItem>
+              <SelectItem value="pdf">PDF</SelectItem>
+              <SelectItem value="csv">CSV</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={exportarBalance}>
+            <Download className="mr-1 h-4 w-4" /> Balance
+          </Button>
           {["deudas", "abonos", "gastos", "ahorros"].map((t) => (
             <Button key={t} size="sm" variant="outline" onClick={() => exportar(t)}>
               <Download className="mr-1 h-4 w-4" /> <span className="capitalize">{t}</span>
