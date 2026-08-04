@@ -691,16 +691,27 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
       setLoading(false);
       return toast.error(err.message ?? "No se pudo subir el comprobante");
     }
-    const { error } = await supabase.from("payments").insert({
-      debt_id: debt.id,
-      user_id: target,
-      created_by: userId,
-      amount: Number(fd.get("amount")),
-      payment_date: String(fd.get("payment_date")),
-      proof_url,
-      notes: String(fd.get("notes") || "") || null,
+    const { error, queued } = await queuedWrite({
+      table: "payments",
+      op: "insert",
+      label: "Abono a deuda",
+      payload: {
+        debt_id: debt.id,
+        user_id: target,
+        created_by: userId,
+        amount: Number(fd.get("amount")),
+        payment_date: String(fd.get("payment_date")),
+        proof_url,
+        notes: String(fd.get("notes") || "") || null,
+      },
     });
     if (error) { setLoading(false); return toast.error(error.message); }
+    if (queued) {
+      setLoading(false);
+      toast.info("Sin conexión: el abono quedó guardado en este dispositivo y se enviará al recuperar la señal.");
+      onDone(false);
+      return;
+    }
 
     if (saldaDeuda) {
       // El comprobante del abono NUNCA sirve como comprobante de liquidación:
