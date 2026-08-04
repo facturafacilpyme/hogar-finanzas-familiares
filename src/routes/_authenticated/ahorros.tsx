@@ -475,6 +475,7 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
   const [person, setPerson] = useState("todos");
   const [goalId, setGoalId] = useState("todas");
   const [editing, setEditing] = useState<any>(null);
+  const confirmarMov = useConfirm();
 
   const goalName = (id: string) => goals.find((g: any) => g.id === id)?.name ?? "Meta";
   const filtered = useMemo(
@@ -490,7 +491,13 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
   );
 
   async function borrar(c: any) {
-    if (!confirm("¿Eliminar este movimiento de ahorro?")) return;
+    const ok = await confirmarMov({
+      title: "Eliminar movimiento",
+      description: `Se eliminará el ${c.kind === "retiro" ? "retiro" : "aporte"} de ${formatCOP(c.amount)}. El saldo de la meta se recalculará.`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from("savings_contributions").delete().eq("id", c.id);
     if (error) return toast.error(error.message);
     toast.success("Movimiento eliminado");
@@ -528,9 +535,9 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
             <ul className="divide-y">
               {filtered.map((c: any) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{goalName(c.goal_id)}</div>
-                    <div className="truncate text-xs text-muted-foreground">
+                  <div className="min-w-0 flex-1 basis-[200px]">
+                    <div className="break-words font-medium">{goalName(c.goal_id)}</div>
+                    <div className="break-words text-xs text-muted-foreground">
                       {nameOf(c.user_id)} · {formatDate(c.contribution_date)}
                       {c.notes ? ` · ${c.notes}` : ""}
                     </div>
