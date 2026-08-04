@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/currency";
 import { useServerFn } from "@tanstack/react-start";
 import { purgeFamilyMember } from "@/lib/admin.functions";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/miembros")({
   head: () => ({ meta: [{ title: "Miembros — HogarFin" }, { name: "description", content: "Gestión de miembros de tu familia." }] }),
@@ -33,6 +34,7 @@ function Miembros() {
   const [invEmail, setInvEmail] = useState("");
   const [phones, setPhones] = useState<Record<string, string>>({});
   const purge = useServerFn(purgeFamilyMember);
+  const confirmar = useConfirm();
 
   useEffect(() => {
     if (role !== null && role !== "admin") nav({ to: "/panel" });
@@ -79,7 +81,13 @@ function Miembros() {
 
   async function removeMember(m: any) {
     if (!familyId) return;
-    if (!confirm(`¿Eliminar a ${m.profiles?.name ?? "este miembro"} de la familia? Su cuenta se borra por completo y podrá registrarse de nuevo.`)) return;
+    const ok = await confirmar({
+      title: "Eliminar miembro",
+      description: `Se eliminará a ${m.profiles?.name ?? "este miembro"} de la familia y su cuenta se borrará por completo. Podrá registrarse de nuevo más adelante.`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await purge({ data: { familyId, userId: m.user_id } });
       toast.success("Miembro eliminado por completo");

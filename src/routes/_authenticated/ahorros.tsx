@@ -20,6 +20,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { mensajeAhorro } from "@/lib/whatsapp";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/ahorros")({
   head: () => ({
@@ -142,6 +143,7 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
   const [openEdit, setOpenEdit] = useState(false);
   const [breaking, setBreaking] = useState(false);
   const [askRecreate, setAskRecreate] = useState(false);
+  const confirmar = useConfirm();
 
   const target = Number(g.target_amount);
   const current = Number(g.current_amount);
@@ -159,7 +161,13 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
   const cuota = asignados.length ? target / asignados.length : target;
 
   async function romper() {
-    if (!confirm("¿Romper la meta y retirar todo el dinero ahorrado? La meta se conserva.")) return;
+    const ok = await confirmar({
+      title: "Romper la meta",
+      description: `Se retirará todo el dinero ahorrado (${formatCOP(current)}) de "${g.name}". La meta se conserva y podrás reactivarla después.`,
+      confirmText: "Romper y retirar",
+      destructive: true,
+    });
+    if (!ok) return;
     setBreaking(true);
     if (current > 0) {
       const { error } = await supabase.from("savings_contributions").insert({
@@ -189,7 +197,13 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
   }
 
   async function eliminar() {
-    if (!confirm("¿Eliminar esta meta y todos sus aportes?")) return;
+    const ok = await confirmar({
+      title: "Eliminar meta",
+      description: `Se eliminará "${g.name}" junto con todos sus aportes. Esta acción no se puede deshacer.`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from("savings_goals").delete().eq("id", g.id);
     if (error) return toast.error(error.message);
     toast.success("Meta eliminada");
@@ -240,7 +254,7 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
               return (
                 <div key={uid}>
                   <div className="flex justify-between gap-2 text-xs">
-                    <span className="min-w-0 truncate">{nameOf(uid)}</span>
+                    <span className="min-w-0 break-words">{nameOf(uid)}</span>
                     <span className="shrink-0 text-muted-foreground">{formatCOP(ap)} / {formatCOP(cuota)}</span>
                   </div>
                   <Progress value={p2} className="mt-1 h-1.5" />
@@ -461,6 +475,7 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
   const [person, setPerson] = useState("todos");
   const [goalId, setGoalId] = useState("todas");
   const [editing, setEditing] = useState<any>(null);
+  const confirmarMov = useConfirm();
 
   const goalName = (id: string) => goals.find((g: any) => g.id === id)?.name ?? "Meta";
   const filtered = useMemo(
@@ -476,7 +491,13 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
   );
 
   async function borrar(c: any) {
-    if (!confirm("¿Eliminar este movimiento de ahorro?")) return;
+    const ok = await confirmarMov({
+      title: "Eliminar movimiento",
+      description: `Se eliminará el ${c.kind === "retiro" ? "retiro" : "aporte"} de ${formatCOP(c.amount)}. El saldo de la meta se recalculará.`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from("savings_contributions").delete().eq("id", c.id);
     if (error) return toast.error(error.message);
     toast.success("Movimiento eliminado");
@@ -514,9 +535,9 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
             <ul className="divide-y">
               {filtered.map((c: any) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{goalName(c.goal_id)}</div>
-                    <div className="truncate text-xs text-muted-foreground">
+                  <div className="min-w-0 flex-1 basis-[200px]">
+                    <div className="break-words font-medium">{goalName(c.goal_id)}</div>
+                    <div className="break-words text-xs text-muted-foreground">
                       {nameOf(c.user_id)} · {formatDate(c.contribution_date)}
                       {c.notes ? ` · ${c.notes}` : ""}
                     </div>

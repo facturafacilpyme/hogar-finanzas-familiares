@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { mensajeDeuda } from "@/lib/whatsapp";
 import { daysUntil } from "@/lib/currency";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { queuedWrite } from "@/lib/syncQueue";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
   head: () => ({
@@ -40,6 +42,7 @@ function Deudas() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [orden, setOrden] = useState<string>("fecha");
   const [openNew, setOpenNew] = useState(false);
 
   const load = useCallback(async () => {
@@ -69,11 +72,22 @@ function Deudas() {
     () => debts.map((d) => ({ debt: d, status: debtStatus(d, payments.filter((p) => p.debt_id === d.id)) })),
     [debts, payments],
   );
-  const filtered = withStatus.filter(({ status }) => {
-    if (filterStatus === "todos") return true;
-    if (filterStatus === "activa") return status === "activa" || status === "por_vencer";
-    return status === filterStatus;
-  });
+  const filtered = useMemo(() => {
+    const base = withStatus.filter(({ status }) => {
+      if (filterStatus === "todos") return true;
+      if (filterStatus === "activa") return status === "activa" || status === "por_vencer";
+      return status === filterStatus;
+    });
+    const cmp: Record<string, (a: any, b: any) => number> = {
+      alfabetico: (a, b) => String(a.debt.name).localeCompare(String(b.debt.name), "es", { sensitivity: "base" }),
+      alfabetico_desc: (a, b) => String(b.debt.name).localeCompare(String(a.debt.name), "es", { sensitivity: "base" }),
+      fecha: (a, b) => (a.debt.due_date ?? "9999-12-31").localeCompare(b.debt.due_date ?? "9999-12-31"),
+      fecha_desc: (a, b) => (b.debt.due_date ?? "0000-01-01").localeCompare(a.debt.due_date ?? "0000-01-01"),
+      valor_desc: (a, b) => Number(b.debt.total_amount) - Number(a.debt.total_amount),
+      valor: (a, b) => Number(a.debt.total_amount) - Number(b.debt.total_amount),
+    };
+    return [...base].sort(cmp[orden] ?? cmp.fecha);
+  }, [withStatus, filterStatus, orden]);
 
   return (
     <div className="w-full min-w-0 space-y-4">
@@ -82,7 +96,7 @@ function Deudas() {
           <h1 className="text-2xl font-bold">Deudas</h1>
           <p className="text-sm text-muted-foreground">Todas las obligaciones del hogar.</p>
         </div>
-        <div className="flex w-full gap-2 sm:w-auto">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="min-w-0 flex-1 sm:w-40 sm:flex-none"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -91,6 +105,17 @@ function Deudas() {
               <SelectItem value="por_vencer">Por vencer</SelectItem>
               <SelectItem value="mora">En mora</SelectItem>
               <SelectItem value="pagada">Pagadas</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={orden} onValueChange={setOrden}>
+            <SelectTrigger className="min-w-0 flex-1 sm:w-52 sm:flex-none"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fecha">Fecha de vencimiento (próxima)</SelectItem>
+              <SelectItem value="fecha_desc">Fecha de vencimiento (lejana)</SelectItem>
+              <SelectItem value="alfabetico">Nombre A → Z</SelectItem>
+              <SelectItem value="alfabetico_desc">Nombre Z → A</SelectItem>
+              <SelectItem value="valor_desc">Valor total (mayor)</SelectItem>
+              <SelectItem value="valor">Valor total (menor)</SelectItem>
             </SelectContent>
           </Select>
           {isAdmin && (
@@ -144,6 +169,7 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
   const [openPay, setOpenPay] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openProof, setOpenProof] = useState(false);
+  const confirmar = useConfirm();
   const meta = STATUS_META[status as keyof typeof STATUS_META];
   const breakdown = memberBreakdown(members, payments);
   const nameOf = (id: string) => profiles.find((p: any) => p.id === id)?.name ?? "?";
@@ -185,8 +211,8 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
             {breakdown.map((m: any) => (
               <div key={m.id}>
                 <div className="flex flex-wrap justify-between gap-1 text-xs">
-                  <span className="min-w-0 truncate">{nameOf(m.user_id)}</span>
-                  <span className="text-muted-foreground">
+                  <span className="min-w-0 break-words">{nameOf(m.user_id)}</span>
+                  <span className="break-words text-muted-foreground">
                     {formatCOP(m.paid)} / {formatCOP(m.assigned)} ·{" "}
                     <b className={m.pending === 0 ? "text-success" : "text-foreground"}>
                       {m.pending === 0 ? "al día" : `faltan ${formatCOP(m.pending)}`}
@@ -261,7 +287,13 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
                   variant="ghost"
                   className="text-destructive"
                   onClick={async () => {
-                    if (!confirm("¿Eliminar esta deuda y todos sus abonos?")) return;
+                    const ok = await confirmar({
+                      title: "Eliminar deuda",
+                      description: `Se eliminará "${debt.name}" y todos sus abonos. Esta acción no se puede deshacer.`,
+                      confirmText: "Eliminar",
+                      destructive: true,
+                    });
+                    if (!ok) return;
                     const { error } = await supabase.from("debts").delete().eq("id", debt.id);
                     if (error) return toast.error(error.message);
                     toast.success("Deuda eliminada");
@@ -314,6 +346,9 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
             <SettlementProofForm
               debt={debt}
               userId={userId}
+              familyId={familyId}
+              profiles={profiles}
+              enMora={status === "mora" || (dias !== null && dias < 0)}
               onDone={() => { setOpenProof(false); onChange(); }}
             />
           </DialogContent>
@@ -323,9 +358,11 @@ function DebtCard({ debt, status, members, profiles, payments, onChange, canPay,
   );
 }
 
-function SettlementProofForm({ debt, userId, onDone }: any) {
+function SettlementProofForm({ debt, userId, familyId, profiles, enMora, onDone }: any) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [interes, setInteres] = useState("");
+  const [responsable, setResponsable] = useState<string>(userId);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -338,6 +375,28 @@ function SettlementProofForm({ debt, userId, onDone }: any) {
         .update({ settlement_proof_url: path, settlement_due_at: null, status: "pagada" })
         .eq("id", debt.id);
       if (error) throw error;
+
+      const valorInteres = Number(interes || 0);
+      if (valorInteres > 0) {
+        const { error: expErr, queued } = await queuedWrite({
+          table: "expenses",
+          op: "insert",
+          label: "Gasto por intereses de mora",
+          payload: {
+            amount: valorInteres,
+            category: "otros",
+            description: `Pago de intereses por mora de la deuda "${debt.name}"${debt.entity ? ` (${debt.entity})` : ""} — responsable del pago: ${
+              profiles?.find((p: any) => p.id === responsable)?.name ?? "miembro"
+            }`,
+            expense_date: new Date().toISOString().slice(0, 10),
+            paid_by: responsable,
+            family_id: familyId,
+          },
+        });
+        if (expErr) toast.error(expErr.message ?? "No se pudo registrar el interés en caja menor");
+        else toast.success(queued ? "Interés guardado y pendiente de sincronizar" : "Interés por mora registrado en Caja Menor (categoría otros)");
+      }
+
       toast.success("Comprobante guardado");
       onDone();
     } catch (err: any) {
@@ -353,9 +412,48 @@ function SettlementProofForm({ debt, userId, onDone }: any) {
         Adjunta la evidencia del pago total de la factura de <b>{debt.name}</b>. Quedará disponible en el historial.
       </p>
       <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+
+      <div className="space-y-2 rounded-lg border p-3">
+        <Label className="text-sm">
+          Interés por mora pagado <span className="text-muted-foreground">(opcional{enMora ? ", esta deuda estuvo en mora" : ""})</span>
+        </Label>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0"
+          value={interes}
+          onChange={(e) => setInteres(e.target.value)}
+        />
+        {Number(interes || 0) > 0 && (
+          <div>
+            <Label className="text-xs">Responsable del pago del interés</Label>
+            <Select value={responsable} onValueChange={setResponsable}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(profiles ?? []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Si registras un valor, se crea automáticamente un gasto en <b>Caja Menor</b> (categoría <b>otros</b>) con el
+          concepto de pago de intereses por la deuda en mora a nombre del responsable.
+        </p>
+      </div>
+
       <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Guardando…" : "Guardar comprobante"}</Button></DialogFooter>
     </form>
   );
+}
+
+/** Suma meses conservando el día de vencimiento (ajusta al último día del mes cuando no existe). */
+function addMonths(iso: string, months: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const base = new Date(y, m - 1 + months, 1);
+  const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  base.setDate(Math.min(d, lastDay));
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
 }
 
 function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, familyId }: any) {
@@ -411,6 +509,44 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
       const { error } = await supabase.from("debts").update(payload).eq("id", debt.id);
       if (error) { toast.error(error.message); setLoading(false); return; }
       await supabase.from("debt_members").delete().eq("debt_id", debt.id);
+    } else if (type === "cuotas" && totalCuotas && totalCuotas > 1) {
+      // Una deuda por cada cuota, el mismo día de cada mes a partir del vencimiento.
+      const primera = payload.due_date ?? new Date().toISOString().slice(0, 10);
+      const valorCuota = totalN / totalCuotas;
+      const asignaciones = Object.entries(assign).filter(([, v]) => Number(v) > 0);
+      for (let i = 0; i < totalCuotas; i++) {
+        const { data, error } = await supabase
+          .from("debts")
+          .insert({
+            ...payload,
+            name: `${payload.name} — cuota ${i + 1}/${totalCuotas}`,
+            total_amount: valorCuota,
+            total_cuotas: totalCuotas,
+            cuota_amount: valorCuota,
+            due_date: addMonths(primera, i),
+            created_by: userId,
+          })
+          .select()
+          .single();
+        if (error || !data) { toast.error(error?.message ?? "Error creando las cuotas"); setLoading(false); return; }
+        const filas = asignaciones.map(([uid, v]) => {
+          const totalPersona = split === "porcentaje" ? (Number(v) / 100) * totalN : Number(v);
+          return {
+            debt_id: data.id,
+            user_id: uid,
+            percentage: totalN ? (totalPersona / totalN) * 100 : null,
+            amount_assigned: totalPersona / totalCuotas,
+          };
+        });
+        if (filas.length) {
+          const { error: e2 } = await supabase.from("debt_members").insert(filas);
+          if (e2) toast.error(e2.message);
+        }
+      }
+      setLoading(false);
+      toast.success(`Se crearon ${totalCuotas} deudas mensuales, una por cada cuota`);
+      onDone();
+      return;
     } else {
       const { data, error } = await supabase.from("debts").insert({ ...payload, created_by: userId }).select().single();
       if (error || !data) { toast.error(error?.message ?? "Error"); setLoading(false); return; }
@@ -453,7 +589,16 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
         </Select>
       </div>
       {type === "cuotas" && (
-        <div><Label># de cuotas</Label><Input name="total_cuotas" type="number" min="1" required defaultValue={debt?.total_cuotas ?? ""} /></div>
+        <div>
+          <Label># de cuotas</Label>
+          <Input name="total_cuotas" type="number" min="1" required defaultValue={debt?.total_cuotas ?? ""} />
+          {!editing && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Se creará una deuda por cada cuota, mes a mes, el mismo día que indiques como fecha de vencimiento
+              (ej.: 3 cuotas desde agosto → agosto, septiembre y octubre). El valor y los responsables se reparten en cada cuota.
+            </p>
+          )}
+        </div>
       )}
       <div><Label>Fecha de vencimiento</Label><Input name="due_date" type="date" defaultValue={debt?.due_date ?? ""} /></div>
       <div><Label>Notas</Label><Textarea name="notes" defaultValue={debt?.notes ?? ""} /></div>
@@ -491,7 +636,7 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
         <div className="space-y-2">
           {profiles.map((p: any) => (
             <div key={p.id} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
+              <span className="min-w-0 flex-1 break-words text-sm">{p.name}</span>
               <Input
                 type="number"
                 min="0"
@@ -546,16 +691,27 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
       setLoading(false);
       return toast.error(err.message ?? "No se pudo subir el comprobante");
     }
-    const { error } = await supabase.from("payments").insert({
-      debt_id: debt.id,
-      user_id: target,
-      created_by: userId,
-      amount: Number(fd.get("amount")),
-      payment_date: String(fd.get("payment_date")),
-      proof_url,
-      notes: String(fd.get("notes") || "") || null,
+    const { error, queued } = await queuedWrite({
+      table: "payments",
+      op: "insert",
+      label: "Abono a deuda",
+      payload: {
+        debt_id: debt.id,
+        user_id: target,
+        created_by: userId,
+        amount: Number(fd.get("amount")),
+        payment_date: String(fd.get("payment_date")),
+        proof_url,
+        notes: String(fd.get("notes") || "") || null,
+      },
     });
     if (error) { setLoading(false); return toast.error(error.message); }
+    if (queued) {
+      setLoading(false);
+      toast.info("Sin conexión: el abono quedó guardado en este dispositivo y se enviará al recuperar la señal.");
+      onDone(false);
+      return;
+    }
 
     if (saldaDeuda) {
       // El comprobante del abono NUNCA sirve como comprobante de liquidación:

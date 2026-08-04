@@ -11,6 +11,8 @@ import { Plus, Receipt, Pencil, Trash2 } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { queuedWrite } from "@/lib/syncQueue";
 
 export const Route = createFileRoute("/_authenticated/caja-menor")({
   head: () => ({ meta: [{ title: "Caja Menor — HogarFin" }, { name: "description", content: "Gastos y caja menor." }] }),
@@ -27,6 +29,7 @@ function CajaMenor() {
   const [filter, setFilter] = useState<string>("todos");
   const [cat, setCat] = useState<string>("mercado");
   const [editing, setEditing] = useState<any>(null);
+  const confirmar = useConfirm();
 
   async function load() {
     if (!familyId) return;
@@ -54,7 +57,13 @@ function CajaMenor() {
   const isAdmin = role === "admin";
 
   async function removeExpense(id: string) {
-    if (!confirm("¿Eliminar este gasto?")) return;
+    const ok = await confirmar({
+      title: "Eliminar gasto",
+      description: "El gasto se quitará de la caja menor. Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from("expenses").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Gasto eliminado");
@@ -77,16 +86,21 @@ function CajaMenor() {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const fd = new FormData(e.currentTarget);
-                  const { error } = await supabase.from("expenses").insert({
-                    amount: Number(fd.get("amount")),
-                    category: cat as any,
-                    description: String(fd.get("description") || "") || null,
-                    expense_date: String(fd.get("expense_date")),
-                    paid_by: user!.id,
-                    family_id: familyId!,
+                  const { error, queued } = await queuedWrite({
+                    table: "expenses",
+                    op: "insert",
+                    label: "Gasto de caja menor",
+                    payload: {
+                      amount: Number(fd.get("amount")),
+                      category: cat,
+                      description: String(fd.get("description") || "") || null,
+                      expense_date: String(fd.get("expense_date")),
+                      paid_by: user!.id,
+                      family_id: familyId!,
+                    },
                   });
                   if (error) return toast.error(error.message);
-                  toast.success("Gasto registrado");
+                  toast.success(queued ? "Sin conexión: el gasto se enviará al recuperar la señal" : "Gasto registrado");
                   setOpenNew(false);
                   load();
                 }}
@@ -183,13 +197,13 @@ function CajaMenor() {
                 const p = profiles.find((pr) => pr.id === x.paid_by);
                 return (
                   <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1 basis-[200px]">
                       <div className="font-medium capitalize">{x.category}</div>
                       <div className="break-words text-xs text-muted-foreground">
                         {x.description || "—"} · {p?.name ?? "?"} · {formatDate(x.expense_date)}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       <span className="font-bold">{formatCOP(x.amount)}</span>
                       {isAdmin && (
                         <>
