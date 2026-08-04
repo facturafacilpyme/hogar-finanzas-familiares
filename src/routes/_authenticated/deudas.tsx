@@ -447,6 +447,15 @@ function SettlementProofForm({ debt, userId, familyId, profiles, enMora, onDone 
   );
 }
 
+/** Suma meses conservando el día de vencimiento (ajusta al último día del mes cuando no existe). */
+function addMonths(iso: string, months: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const base = new Date(y, m - 1 + months, 1);
+  const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  base.setDate(Math.min(d, lastDay));
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
+}
+
 function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, familyId }: any) {
   const editing = !!debt;
   const [type, setType] = useState<"unico" | "cuotas">(debt?.debt_type ?? "unico");
@@ -500,6 +509,44 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
       const { error } = await supabase.from("debts").update(payload).eq("id", debt.id);
       if (error) { toast.error(error.message); setLoading(false); return; }
       await supabase.from("debt_members").delete().eq("debt_id", debt.id);
+    } else if (type === "cuotas" && totalCuotas && totalCuotas > 1) {
+      // Una deuda por cada cuota, el mismo día de cada mes a partir del vencimiento.
+      const primera = payload.due_date ?? new Date().toISOString().slice(0, 10);
+      const valorCuota = totalN / totalCuotas;
+      const asignaciones = Object.entries(assign).filter(([, v]) => Number(v) > 0);
+      for (let i = 0; i < totalCuotas; i++) {
+        const { data, error } = await supabase
+          .from("debts")
+          .insert({
+            ...payload,
+            name: `${payload.name} — cuota ${i + 1}/${totalCuotas}`,
+            total_amount: valorCuota,
+            total_cuotas: totalCuotas,
+            cuota_amount: valorCuota,
+            due_date: addMonths(primera, i),
+            created_by: userId,
+          })
+          .select()
+          .single();
+        if (error || !data) { toast.error(error?.message ?? "Error creando las cuotas"); setLoading(false); return; }
+        const filas = asignaciones.map(([uid, v]) => {
+          const totalPersona = split === "porcentaje" ? (Number(v) / 100) * totalN : Number(v);
+          return {
+            debt_id: data.id,
+            user_id: uid,
+            percentage: totalN ? (totalPersona / totalN) * 100 : null,
+            amount_assigned: totalPersona / totalCuotas,
+          };
+        });
+        if (filas.length) {
+          const { error: e2 } = await supabase.from("debt_members").insert(filas);
+          if (e2) toast.error(e2.message);
+        }
+      }
+      setLoading(false);
+      toast.success(`Se crearon ${totalCuotas} deudas mensuales, una por cada cuota`);
+      onDone();
+      return;
     } else {
       const { data, error } = await supabase.from("debts").insert({ ...payload, created_by: userId }).select().single();
       if (error || !data) { toast.error(error?.message ?? "Error"); setLoading(false); return; }
@@ -542,7 +589,16 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
         </Select>
       </div>
       {type === "cuotas" && (
-        <div><Label># de cuotas</Label><Input name="total_cuotas" type="number" min="1" required defaultValue={debt?.total_cuotas ?? ""} /></div>
+        <div>
+          <Label># de cuotas</Label>
+          <Input name="total_cuotas" type="number" min="1" required defaultValue={debt?.total_cuotas ?? ""} />
+          {!editing && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Se creará una deuda por cada cuota, mes a mes, el mismo día que indiques como fecha de vencimiento
+              (ej.: 3 cuotas desde agosto → agosto, septiembre y octubre). El valor y los responsables se reparten en cada cuota.
+            </p>
+          )}
+        </div>
       )}
       <div><Label>Fecha de vencimiento</Label><Input name="due_date" type="date" defaultValue={debt?.due_date ?? ""} /></div>
       <div><Label>Notas</Label><Textarea name="notes" defaultValue={debt?.notes ?? ""} /></div>
@@ -580,7 +636,7 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
         <div className="space-y-2">
           {profiles.map((p: any) => (
             <div key={p.id} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
+              <span className="min-w-0 flex-1 break-words text-sm">{p.name}</span>
               <Input
                 type="number"
                 min="0"
