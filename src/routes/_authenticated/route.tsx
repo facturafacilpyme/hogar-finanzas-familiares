@@ -30,6 +30,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
+import { ReminderPopup } from "@/components/ReminderPopup";
+import { SyncStatus } from "@/components/SyncStatus";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -81,7 +84,7 @@ function AuthedLayout() {
 
   const allItems = [
     ...items,
-    ...(role === "admin" ? [{ title: "Mi familia", to: "/miembros", icon: Users }] : []),
+    { title: "Mi familia", to: "/miembros", icon: Users },
     { title: "Mi cuenta", to: "/cuenta", icon: UserCog },
   ];
 
@@ -92,6 +95,7 @@ function AuthedLayout() {
 
   return (
     <SidebarProvider>
+      <ConfirmProvider>
       <div className="flex min-h-screen w-full overflow-x-hidden">
         <Sidebar collapsible="icon">
           <SidebarHeader>
@@ -142,13 +146,14 @@ function AuthedLayout() {
                   </SelectContent>
                 </Select>
               ) : (
-                familyName && <span className="max-w-[100px] truncate text-xs font-medium sm:max-w-[160px]">{familyName}</span>
+                familyName && <span className="min-w-0 break-words text-xs font-medium leading-tight">{familyName}</span>
               )}
               <span className="hidden rounded-full bg-accent px-2 py-0.5 text-xs font-semibold capitalize text-accent-foreground sm:inline">
                 {role}
               </span>
             </div>
             <div className="flex items-center gap-2">
+              <SyncStatus />
               <NotificationBell />
               <Button size="sm" variant="ghost" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
@@ -162,6 +167,8 @@ function AuthedLayout() {
           </main>
         </div>
       </div>
+      <ReminderPopup />
+      </ConfirmProvider>
     </SidebarProvider>
   );
 }
