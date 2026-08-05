@@ -429,6 +429,7 @@ function Panel() {
 
 function StatCard({ icon: Icon, label, value, tone, hint }: { icon: any; label: string; value: string; tone: "primary" | "success" | "warning"; hint?: string }) {
   const toneMap = {
+  const toneMap = {
     primary: "bg-primary/10 text-primary",
     success: "bg-success/15 text-success",
     warning: "bg-warning/30 text-warning-foreground",
