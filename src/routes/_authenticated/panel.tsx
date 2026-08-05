@@ -427,8 +427,16 @@ function Panel() {
   );
 }
 
+function MiniStat({ label, value, tone }: { label: string; value: string; tone: string }) {
+  return (
+    <div className="rounded-lg border bg-background p-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`break-words text-sm font-bold leading-tight ${tone}`}>{value}</div>
+    </div>
+  );
+}
+
 function StatCard({ icon: Icon, label, value, tone, hint }: { icon: any; label: string; value: string; tone: "primary" | "success" | "warning"; hint?: string }) {
-  const toneMap = {
   const toneMap = {
     primary: "bg-primary/10 text-primary",
     success: "bg-success/15 text-success",
