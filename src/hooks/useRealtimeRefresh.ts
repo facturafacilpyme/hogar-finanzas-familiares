@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const TABLES = [
@@ -18,6 +18,7 @@ const TABLES = [
 export function useRealtimeRefresh(familyId: string | null | undefined, onChange: () => void) {
   const cb = useRef(onChange);
   cb.current = onChange;
+  const uid = useId();
 
   useEffect(() => {
     if (!familyId) return;
@@ -27,7 +28,7 @@ export function useRealtimeRefresh(familyId: string | null | undefined, onChange
       timer = setTimeout(() => cb.current(), 250);
     };
 
-    const channel = supabase.channel(`familia-${familyId}`);
+    const channel = supabase.channel(`familia-${familyId}-${uid.replace(/:/g, "")}-${Math.random().toString(36).slice(2, 8)}`);
     TABLES.forEach((table) => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, ping);
     });
@@ -37,5 +38,5 @@ export function useRealtimeRefresh(familyId: string | null | undefined, onChange
       if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [familyId]);
+  }, [familyId, uid]);
 }
