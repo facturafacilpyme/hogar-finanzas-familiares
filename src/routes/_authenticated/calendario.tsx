@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -170,7 +170,7 @@ function Calendario() {
                     </div>
                   </div>
                   <Button asChild size="sm" variant="outline" className="shrink-0">
-                    <a href="/deudas">Registrar abono</a>
+                    <Link to="/deudas">Registrar abono</Link>
                   </Button>
                 </li>
               ))}
