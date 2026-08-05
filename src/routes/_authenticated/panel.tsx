@@ -118,15 +118,15 @@ function Panel() {
         .sort((a: any, b: any) => b.pendiente - a.pendiente);
       setPorPersona(resumen);
 
-      // Alertas de urgencia: deudas en mora o por vencer (<=3 días) con saldo
+      // Alertas predictivas de mora: deudas en mora o que vencen dentro de 5 días
       const urgentes = (debts ?? [])
         .map((d: any) => {
           const abonado = (pays ?? []).filter((x: any) => x.debt_id === d.id).reduce((s: number, x: any) => s + Number(x.amount), 0);
           const pendiente = Number(d.total_amount) - abonado;
           const dias = daysUntil(d.due_date);
-          return { debt: d, pendiente, dias };
+          return { debt: d, pendiente, dias, riesgo: nivelRiesgo(dias, pendiente) };
         })
-        .filter((x: any) => x.pendiente > 0.5 && x.dias !== null && x.dias <= 3)
+        .filter((x: any) => x.pendiente > 0.5 && x.dias !== null && x.dias <= 5)
         .sort((a: any, b: any) => (a.dias ?? 0) - (b.dias ?? 0));
       setAlertas(urgentes);
 
