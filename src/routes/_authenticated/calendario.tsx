@@ -145,6 +145,40 @@ function Calendario() {
         </div>
       </div>
 
+      {riesgos.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="space-y-2 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+              <ShieldAlert className="h-4 w-4" /> Riesgo de mora
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estas obligaciones vencen dentro de los próximos 5 días o ya se vencieron. Actúa antes de que generen intereses.
+            </p>
+            <ul className="space-y-2">
+              {riesgos.map(({ debt, pendiente, dias, riesgo }) => (
+                <li key={debt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background p-2 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-0 break-words font-medium">{debt.name}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${RIESGO_META[riesgo!].cls}`}>
+                        {RIESGO_META[riesgo!].label}
+                      </span>
+                    </div>
+                    <div className="break-words text-xs text-muted-foreground">
+                      {debt.entity} · {formatCOP(pendiente)} pendiente · vence {formatDate(debt.due_date)}
+                      {dias !== null && (dias < 0 ? ` (hace ${Math.abs(dias)}d)` : dias === 0 ? " (hoy)" : ` (en ${dias}d)`)}
+                    </div>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="shrink-0">
+                    <a href="/deudas">Registrar abono</a>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-2 sm:p-3">
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
