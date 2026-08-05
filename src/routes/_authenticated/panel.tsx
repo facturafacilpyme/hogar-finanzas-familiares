@@ -2,13 +2,28 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target, Users, AlertTriangle } from "lucide-react";
+import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target, Users, AlertTriangle, CalendarRange, Share2, ShieldAlert } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { mensajeDeuda, mensajeResumenPersona } from "@/lib/whatsapp";
+import { mensajeDeuda, mensajeResumenPersona, mensajeResumenSemanal, compartirWhatsApp } from "@/lib/whatsapp";
+import { Button } from "@/components/ui/button";
+import { nivelRiesgo, RIESGO_META } from "@/lib/strategy";
 import { Progress } from "@/components/ui/progress";
+
+/** Lunes 00:00 y domingo 23:59 de la semana en curso. */
+function rangoSemana(base = new Date()) {
+  const d = new Date(base);
+  d.setHours(0, 0, 0, 0);
+  const dow = (d.getDay() + 6) % 7; // 0 = lunes
+  const desde = new Date(d);
+  desde.setDate(d.getDate() - dow);
+  const hasta = new Date(desde);
+  hasta.setDate(desde.getDate() + 6);
+  hasta.setHours(23, 59, 59, 999);
+  return { desde, hasta };
+}
 
 export const Route = createFileRoute("/_authenticated/panel")({
   head: () => ({ meta: [{ title: "Panel — HogarFin" }, { name: "description", content: "Resumen financiero familiar." }] }),
@@ -24,6 +39,7 @@ function Panel() {
   const [goals, setGoals] = useState<any[]>([]);
   const [porPersona, setPorPersona] = useState<any[]>([]);
   const [alertas, setAlertas] = useState<any[]>([]);
+  const [semana, setSemana] = useState<any>(null);
 
   const load = useCallback(async () => {
       if (!familyId) return;
@@ -113,6 +129,33 @@ function Panel() {
         .filter((x: any) => x.pendiente > 0.5 && x.dias !== null && x.dias <= 3)
         .sort((a: any, b: any) => (a.dias ?? 0) - (b.dias ?? 0));
       setAlertas(urgentes);
+
+      // Balance semanal
+      const { desde, hasta } = rangoSemana();
+      const enSemana = (v?: string | null) => {
+        if (!v) return false;
+        const t = new Date(v).getTime();
+        return t >= desde.getTime() && t <= hasta.getTime();
+      };
+      setSemana({
+        desde,
+        hasta,
+        deudaPendiente: Math.max(0, totalDebt - totalPaid),
+        abonosSemana: (pays ?? []).filter((p: any) => enSemana(p.payment_date)).reduce((s: number, p: any) => s + Number(p.amount), 0),
+        ahorroTotal: totalSaved,
+        aportesSemana: (contrib ?? [])
+          .filter((c: any) => enSemana(c.contribution_date) && c.kind !== "retiro")
+          .reduce((s: number, c: any) => s + Number(c.amount), 0),
+        gastosSemana: (exp ?? []).filter((e: any) => enSemana(e.expense_date)).reduce((s: number, e: any) => s + Number(e.amount), 0),
+        proximos: (debts ?? [])
+          .filter((d: any) => d.due_date && enSemana(d.due_date))
+          .map((d: any) => {
+            const abonado = (pays ?? []).filter((x: any) => x.debt_id === d.id).reduce((s: number, x: any) => s + Number(x.amount), 0);
+            return { name: d.name, monto: Math.max(0, Number(d.total_amount) - abonado), due_date: d.due_date };
+          })
+          .filter((x: any) => x.monto > 0.5)
+          .sort((a: any, b: any) => String(a.due_date).localeCompare(String(b.due_date))),
+      });
   }, [familyId]);
 
   useEffect(() => { load(); }, [load]);
