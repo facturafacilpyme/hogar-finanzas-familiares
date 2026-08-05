@@ -171,10 +171,10 @@ function Panel() {
       {alertas.length > 0 && (
         <div className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
           <div className="flex items-center gap-2 font-semibold text-destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <ShieldAlert className="h-4 w-4" />
             {alertas.some((a) => (a.dias ?? 0) < 0)
-              ? "¡Atención! Hay deudas en mora"
-              : "¡Ojo! Hay deudas por vencer"}
+              ? "Riesgo de mora: hay deudas vencidas"
+              : "Riesgo de mora: pagos próximos a vencer"}
           </div>
           <p className="text-xs text-destructive/90">
             {role === "admin"
@@ -184,20 +184,79 @@ function Panel() {
                 : "Revisa si alguna de estas deudas es tuya y registra tu abono hoy para evitar intereses y recargos."}
           </p>
           <ul className="space-y-2">
-            {alertas.slice(0, 5).map(({ debt, pendiente, dias }) => (
+            {alertas.slice(0, 6).map(({ debt, pendiente, dias, riesgo }) => (
               <li key={debt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background/70 p-2 text-sm">
                 <div className="min-w-0 flex-1">
-                  <div className="break-words font-medium">{debt.name}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="min-w-0 break-words font-medium">{debt.name}</span>
+                    {riesgo && (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${RIESGO_META[riesgo as keyof typeof RIESGO_META].cls}`}>
+                        {RIESGO_META[riesgo as keyof typeof RIESGO_META].label}
+                      </span>
+                    )}
+                  </div>
                   <div className="break-words text-xs text-muted-foreground">
                     {debt.entity} · {formatCOP(pendiente)} pendiente ·{" "}
                     {dias < 0 ? `en mora hace ${Math.abs(dias)}d` : dias === 0 ? "vence hoy" : `vence en ${dias}d`}
                   </div>
                 </div>
-                <Link to="/deudas" className="shrink-0 text-xs font-semibold text-primary hover:underline">Ver deuda</Link>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Link to="/deudas" className="text-xs font-semibold text-primary hover:underline">Registrar abono</Link>
+                  <Link to="/calendario" className="text-xs font-semibold text-primary hover:underline">Calendario</Link>
+                </div>
               </li>
             ))}
           </ul>
         </div>
+      )}
+
+      {semana && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+              <span className="flex items-center gap-2">
+                <CalendarRange className="h-4 w-4" /> Balance semanal
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  compartirWhatsApp(mensajeResumenSemanal({ familia: familyName, ...semana }))
+                }
+              >
+                <Share2 className="mr-1 h-3.5 w-3.5" /> Compartir
+              </Button>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {formatDate(semana.desde)} — {formatDate(semana.hasta)}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <MiniStat label="Deuda pendiente" value={formatCOP(semana.deudaPendiente)} tone="text-foreground" />
+              <MiniStat label="Abonos de la semana" value={formatCOP(semana.abonosSemana)} tone="text-success" />
+              <MiniStat label="Ahorro acumulado" value={formatCOP(semana.ahorroTotal)} tone="text-primary" />
+              <MiniStat label="Caja menor semanal" value={formatCOP(semana.gastosSemana)} tone="text-warning-foreground" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-muted-foreground">Próximos pagos de esta semana</div>
+              {semana.proximos.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">Sin pagos programados esta semana. 🎉</p>
+              ) : (
+                <ul className="mt-1 space-y-1">
+                  {semana.proximos.map((p: any, i: number) => (
+                    <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 break-words">{p.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatCOP(p.monto)} · {formatDate(p.due_date)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
