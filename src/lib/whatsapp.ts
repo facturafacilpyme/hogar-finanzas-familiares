@@ -170,3 +170,8 @@ export function mensajeRiesgoMora(opts: {
     `\n\nAdelántate: registra hoy tu abono y evita intereses. 🙌`
   );
 }
+
+/** Abre WhatsApp para escoger el destinatario y compartir un texto (sin número fijo). */
+export function compartirWhatsApp(message: string) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+}
