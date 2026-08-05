@@ -692,6 +692,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_save_family: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_write_family: {
         Args: { _family_id: string; _user_id: string }
         Returns: boolean
