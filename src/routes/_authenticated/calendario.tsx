@@ -5,9 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCOP } from "@/lib/currency";
+import { ChevronLeft, ChevronRight, ShieldAlert } from "lucide-react";
+import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { memberBreakdown, sum } from "@/lib/debts";
+import { nivelRiesgo, RIESGO_META } from "@/lib/strategy";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
@@ -65,6 +66,19 @@ function Calendario() {
   useRealtimeRefresh(familyId, load);
 
   const nameOf = (id: string) => profiles.find((p) => p.id === id)?.name ?? "—";
+
+  /** Riesgo de mora: deudas con saldo que vencen dentro de 5 días o ya vencieron. */
+  const riesgos = useMemo(() => {
+    return debts
+      .map((d) => {
+        const pays = payments.filter((p) => p.debt_id === d.id);
+        const pendiente = Number(d.total_amount) - sum(pays);
+        const dias = daysUntil(d.due_date);
+        return { debt: d, pendiente, dias, riesgo: nivelRiesgo(dias, pendiente) };
+      })
+      .filter((x) => x.riesgo === "critico" || x.riesgo === "alto" || x.riesgo === "medio")
+      .sort((a, b) => (a.dias ?? 0) - (b.dias ?? 0));
+  }, [debts, payments]);
 
   const y = ref.getFullYear();
   const m = ref.getMonth();
