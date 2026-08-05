@@ -55,6 +55,86 @@ export type Database = {
           },
         ]
       }
+      badges: {
+        Row: {
+          code: string
+          created_at: string
+          family_id: string
+          goal_id: string | null
+          id: string
+          label: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          family_id: string
+          goal_id?: string | null
+          id?: string
+          label: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          family_id?: string
+          goal_id?: string | null
+          id?: string
+          label?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badges_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "badges_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "savings_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          family_id: string
+          id: string
+          monthly_limit: number
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          family_id: string
+          id?: string
+          monthly_limit?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          family_id?: string
+          id?: string
+          monthly_limit?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       debt_members: {
         Row: {
           amount_assigned: number
@@ -111,6 +191,7 @@ export type Database = {
           entity: string
           family_id: string
           id: string
+          interest_rate: number
           name: string
           notes: string | null
           settled_at: string | null
@@ -135,6 +216,7 @@ export type Database = {
           entity: string
           family_id: string
           id?: string
+          interest_rate?: number
           name: string
           notes?: string | null
           settled_at?: string | null
@@ -159,6 +241,7 @@ export type Database = {
           entity?: string
           family_id?: string
           id?: string
+          interest_rate?: number
           name?: string
           notes?: string | null
           settled_at?: string | null
@@ -250,6 +333,7 @@ export type Database = {
           created_at: string
           family_id: string
           id: string
+          monthly_income: number
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -257,6 +341,7 @@ export type Database = {
           created_at?: string
           family_id: string
           id?: string
+          monthly_income?: number
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -264,6 +349,7 @@ export type Database = {
           created_at?: string
           family_id?: string
           id?: string
+          monthly_income?: number
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -553,9 +639,12 @@ export type Database = {
           current_amount: number
           due_date: string | null
           family_id: string
+          goal_kind: string
           id: string
           is_challenge: boolean
           name: string
+          period_end: string | null
+          period_start: string | null
           target_amount: number
         }
         Insert: {
@@ -565,9 +654,12 @@ export type Database = {
           current_amount?: number
           due_date?: string | null
           family_id: string
+          goal_kind?: string
           id?: string
           is_challenge?: boolean
           name: string
+          period_end?: string | null
+          period_start?: string | null
           target_amount: number
         }
         Update: {
@@ -577,9 +669,12 @@ export type Database = {
           current_amount?: number
           due_date?: string | null
           family_id?: string
+          goal_kind?: string
           id?: string
           is_challenge?: boolean
           name?: string
+          period_end?: string | null
+          period_start?: string | null
           target_amount?: number
         }
         Relationships: [
@@ -597,6 +692,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_save_family: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_write_family: {
         Args: { _family_id: string; _user_id: string }
         Returns: boolean
@@ -641,7 +740,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "miembro" | "invitado"
+      app_role: "admin" | "miembro" | "invitado" | "educativo"
       debt_status: "activa" | "pagada" | "mora"
       debt_type: "unico" | "cuotas"
       expense_category:
@@ -657,6 +756,7 @@ export type Database = {
         | "abono_registrado"
         | "meta_completada"
         | "pago_total_pendiente"
+        | "riesgo_mora"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -784,7 +884,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "miembro", "invitado"],
+      app_role: ["admin", "miembro", "invitado", "educativo"],
       debt_status: ["activa", "pagada", "mora"],
       debt_type: ["unico", "cuotas"],
       expense_category: [
@@ -801,6 +901,7 @@ export const Constants = {
         "abono_registrado",
         "meta_completada",
         "pago_total_pendiente",
+        "riesgo_mora",
       ],
     },
   },

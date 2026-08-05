@@ -1,13 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCOP } from "@/lib/currency";
+import { ChevronLeft, ChevronRight, ShieldAlert } from "lucide-react";
+import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { memberBreakdown, sum } from "@/lib/debts";
+import { nivelRiesgo, RIESGO_META } from "@/lib/strategy";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
@@ -65,6 +66,19 @@ function Calendario() {
   useRealtimeRefresh(familyId, load);
 
   const nameOf = (id: string) => profiles.find((p) => p.id === id)?.name ?? "—";
+
+  /** Riesgo de mora: deudas con saldo que vencen dentro de 5 días o ya vencieron. */
+  const riesgos = useMemo(() => {
+    return debts
+      .map((d) => {
+        const pays = payments.filter((p) => p.debt_id === d.id);
+        const pendiente = Number(d.total_amount) - sum(pays);
+        const dias = daysUntil(d.due_date);
+        return { debt: d, pendiente, dias, riesgo: nivelRiesgo(dias, pendiente) };
+      })
+      .filter((x) => x.riesgo === "critico" || x.riesgo === "alto" || x.riesgo === "medio")
+      .sort((a, b) => (a.dias ?? 0) - (b.dias ?? 0));
+  }, [debts, payments]);
 
   const y = ref.getFullYear();
   const m = ref.getMonth();
@@ -130,6 +144,40 @@ function Calendario() {
           <Button size="icon" variant="outline" onClick={() => setRef(new Date(y, m + 1, 1))}><ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>
+
+      {riesgos.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="space-y-2 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+              <ShieldAlert className="h-4 w-4" /> Riesgo de mora
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estas obligaciones vencen dentro de los próximos 5 días o ya se vencieron. Actúa antes de que generen intereses.
+            </p>
+            <ul className="space-y-2">
+              {riesgos.map(({ debt, pendiente, dias, riesgo }) => (
+                <li key={debt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background p-2 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-0 break-words font-medium">{debt.name}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${RIESGO_META[riesgo!].cls}`}>
+                        {RIESGO_META[riesgo!].label}
+                      </span>
+                    </div>
+                    <div className="break-words text-xs text-muted-foreground">
+                      {debt.entity} · {formatCOP(pendiente)} pendiente · vence {formatDate(debt.due_date)}
+                      {dias !== null && (dias < 0 ? ` (hace ${Math.abs(dias)}d)` : dias === 0 ? " (hoy)" : ` (en ${dias}d)`)}
+                    </div>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="shrink-0">
+                    <Link to="/deudas">Registrar abono</Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-2 sm:p-3">

@@ -105,3 +105,73 @@ export function mensajeAhorro(opts: {
     `\n\n💡 Consejo: ${tipAhorro(seed ?? 0)}\n\n¡Vamos con toda, cada aporte cuenta! 💪`
   );
 }
+
+export function mensajeResumenSemanal(opts: {
+  familia?: string | null;
+  desde: string | Date;
+  hasta: string | Date;
+  deudaPendiente: number;
+  abonosSemana: number;
+  ahorroTotal: number;
+  aportesSemana: number;
+  gastosSemana: number;
+  proximos: { name: string; monto: number; due_date?: string | null }[];
+}) {
+  const { familia, desde, hasta, deudaPendiente, abonosSemana, ahorroTotal, aportesSemana, gastosSemana, proximos } = opts;
+  const lista = proximos.length
+    ? proximos.map((p) => `• ${p.name}: ${formatCOP(p.monto)}${p.due_date ? ` (${formatDate(p.due_date)})` : ""}`).join("\n")
+    : "• Sin pagos programados esta semana 🎉";
+  return (
+    `📊 *Balance semanal HogarFin*${familia ? ` · ${familia}` : ""}\n` +
+    `🗓️ ${formatDate(desde)} — ${formatDate(hasta)}\n\n` +
+    `💳 Deuda pendiente: *${formatCOP(deudaPendiente)}*\n` +
+    `✅ Abonos de la semana: ${formatCOP(abonosSemana)}\n` +
+    `🐷 Ahorro acumulado: ${formatCOP(ahorroTotal)} (aportes: ${formatCOP(aportesSemana)})\n` +
+    `🧾 Caja menor de la semana: ${formatCOP(gastosSemana)}\n\n` +
+    `⏳ *Próximos pagos:*\n${lista}\n\n` +
+    `¡Sigamos así, cada peso cuenta! 💪`
+  );
+}
+
+export function mensajeReto(opts: {
+  familia?: string | null;
+  reto: string;
+  meta: number;
+  logrado: number;
+  diasRestantes: number | null;
+}) {
+  const { familia, reto, meta, logrado, diasRestantes } = opts;
+  const pct = meta > 0 ? Math.min(100, (logrado / meta) * 100) : 0;
+  if (pct >= 100) {
+    return `🏆 ¡Reto cumplido!${familia ? ` (${familia})` : ""}\n\n*${reto}*\nMeta ${formatCOP(meta)} — ¡lo logramos entre todos! 🎉`;
+  }
+  return (
+    `🔥 *Reto de la semana*${familia ? ` · ${familia}` : ""}\n\n` +
+    `*${reto}*\nAvance: ${formatCOP(logrado)} de ${formatCOP(meta)} (${pct.toFixed(0)}%)\n` +
+    `Faltan ${formatCOP(Math.max(0, meta - logrado))}` +
+    (diasRestantes !== null ? ` y quedan ${Math.max(0, diasRestantes)} día(s).` : ".") +
+    `\n\n¡Vamos con todo, cada aporte suma! 💪`
+  );
+}
+
+export function mensajeRiesgoMora(opts: {
+  nombre?: string | null;
+  deuda: string;
+  pendiente: number;
+  dias: number | null;
+  familia?: string | null;
+}) {
+  const { nombre, deuda, pendiente, dias, familia } = opts;
+  return (
+    `⚠️ *Alerta de riesgo de mora*${familia ? ` · ${familia}` : ""}\n\n` +
+    (nombre ? `Hola ${nombre} 👋\n\n` : "") +
+    `La deuda *${deuda}* tiene ${formatCOP(pendiente)} pendiente y ` +
+    (dias === null ? "no tiene fecha registrada." : dias < 0 ? `ya está en mora hace ${Math.abs(dias)} día(s).` : dias === 0 ? "vence *hoy*." : `vence en *${dias} día(s)*.`) +
+    `\n\nAdelántate: registra hoy tu abono y evita intereses. 🙌`
+  );
+}
+
+/** Abre WhatsApp para escoger el destinatario y compartir un texto (sin número fijo). */
+export function compartirWhatsApp(message: string) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+}

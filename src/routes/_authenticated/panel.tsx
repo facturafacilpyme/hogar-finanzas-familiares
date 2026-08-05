@@ -2,13 +2,28 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target, Users, AlertTriangle } from "lucide-react";
+import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target, Users, AlertTriangle, CalendarRange, Share2, ShieldAlert } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { mensajeDeuda, mensajeResumenPersona } from "@/lib/whatsapp";
+import { mensajeDeuda, mensajeResumenPersona, mensajeResumenSemanal, compartirWhatsApp } from "@/lib/whatsapp";
+import { Button } from "@/components/ui/button";
+import { nivelRiesgo, RIESGO_META } from "@/lib/strategy";
 import { Progress } from "@/components/ui/progress";
+
+/** Lunes 00:00 y domingo 23:59 de la semana en curso. */
+function rangoSemana(base = new Date()) {
+  const d = new Date(base);
+  d.setHours(0, 0, 0, 0);
+  const dow = (d.getDay() + 6) % 7; // 0 = lunes
+  const desde = new Date(d);
+  desde.setDate(d.getDate() - dow);
+  const hasta = new Date(desde);
+  hasta.setDate(desde.getDate() + 6);
+  hasta.setHours(23, 59, 59, 999);
+  return { desde, hasta };
+}
 
 export const Route = createFileRoute("/_authenticated/panel")({
   head: () => ({ meta: [{ title: "Panel — HogarFin" }, { name: "description", content: "Resumen financiero familiar." }] }),
@@ -24,6 +39,7 @@ function Panel() {
   const [goals, setGoals] = useState<any[]>([]);
   const [porPersona, setPorPersona] = useState<any[]>([]);
   const [alertas, setAlertas] = useState<any[]>([]);
+  const [semana, setSemana] = useState<any>(null);
 
   const load = useCallback(async () => {
       if (!familyId) return;
@@ -102,17 +118,44 @@ function Panel() {
         .sort((a: any, b: any) => b.pendiente - a.pendiente);
       setPorPersona(resumen);
 
-      // Alertas de urgencia: deudas en mora o por vencer (<=3 días) con saldo
+      // Alertas predictivas de mora: deudas en mora o que vencen dentro de 5 días
       const urgentes = (debts ?? [])
         .map((d: any) => {
           const abonado = (pays ?? []).filter((x: any) => x.debt_id === d.id).reduce((s: number, x: any) => s + Number(x.amount), 0);
           const pendiente = Number(d.total_amount) - abonado;
           const dias = daysUntil(d.due_date);
-          return { debt: d, pendiente, dias };
+          return { debt: d, pendiente, dias, riesgo: nivelRiesgo(dias, pendiente) };
         })
-        .filter((x: any) => x.pendiente > 0.5 && x.dias !== null && x.dias <= 3)
+        .filter((x: any) => x.pendiente > 0.5 && x.dias !== null && x.dias <= 5)
         .sort((a: any, b: any) => (a.dias ?? 0) - (b.dias ?? 0));
       setAlertas(urgentes);
+
+      // Balance semanal
+      const { desde, hasta } = rangoSemana();
+      const enSemana = (v?: string | null) => {
+        if (!v) return false;
+        const t = new Date(v).getTime();
+        return t >= desde.getTime() && t <= hasta.getTime();
+      };
+      setSemana({
+        desde,
+        hasta,
+        deudaPendiente: Math.max(0, totalDebt - totalPaid),
+        abonosSemana: (pays ?? []).filter((p: any) => enSemana(p.payment_date)).reduce((s: number, p: any) => s + Number(p.amount), 0),
+        ahorroTotal: totalSaved,
+        aportesSemana: (contrib ?? [])
+          .filter((c: any) => enSemana(c.contribution_date) && c.kind !== "retiro")
+          .reduce((s: number, c: any) => s + Number(c.amount), 0),
+        gastosSemana: (exp ?? []).filter((e: any) => enSemana(e.expense_date)).reduce((s: number, e: any) => s + Number(e.amount), 0),
+        proximos: (debts ?? [])
+          .filter((d: any) => d.due_date && enSemana(d.due_date))
+          .map((d: any) => {
+            const abonado = (pays ?? []).filter((x: any) => x.debt_id === d.id).reduce((s: number, x: any) => s + Number(x.amount), 0);
+            return { name: d.name, monto: Math.max(0, Number(d.total_amount) - abonado), due_date: d.due_date };
+          })
+          .filter((x: any) => x.monto > 0.5)
+          .sort((a: any, b: any) => String(a.due_date).localeCompare(String(b.due_date))),
+      });
   }, [familyId]);
 
   useEffect(() => { load(); }, [load]);
@@ -128,10 +171,10 @@ function Panel() {
       {alertas.length > 0 && (
         <div className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
           <div className="flex items-center gap-2 font-semibold text-destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <ShieldAlert className="h-4 w-4" />
             {alertas.some((a) => (a.dias ?? 0) < 0)
-              ? "¡Atención! Hay deudas en mora"
-              : "¡Ojo! Hay deudas por vencer"}
+              ? "Riesgo de mora: hay deudas vencidas"
+              : "Riesgo de mora: pagos próximos a vencer"}
           </div>
           <p className="text-xs text-destructive/90">
             {role === "admin"
@@ -141,20 +184,79 @@ function Panel() {
                 : "Revisa si alguna de estas deudas es tuya y registra tu abono hoy para evitar intereses y recargos."}
           </p>
           <ul className="space-y-2">
-            {alertas.slice(0, 5).map(({ debt, pendiente, dias }) => (
+            {alertas.slice(0, 6).map(({ debt, pendiente, dias, riesgo }) => (
               <li key={debt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background/70 p-2 text-sm">
                 <div className="min-w-0 flex-1">
-                  <div className="break-words font-medium">{debt.name}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="min-w-0 break-words font-medium">{debt.name}</span>
+                    {riesgo && (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${RIESGO_META[riesgo as keyof typeof RIESGO_META].cls}`}>
+                        {RIESGO_META[riesgo as keyof typeof RIESGO_META].label}
+                      </span>
+                    )}
+                  </div>
                   <div className="break-words text-xs text-muted-foreground">
                     {debt.entity} · {formatCOP(pendiente)} pendiente ·{" "}
                     {dias < 0 ? `en mora hace ${Math.abs(dias)}d` : dias === 0 ? "vence hoy" : `vence en ${dias}d`}
                   </div>
                 </div>
-                <Link to="/deudas" className="shrink-0 text-xs font-semibold text-primary hover:underline">Ver deuda</Link>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Link to="/deudas" className="text-xs font-semibold text-primary hover:underline">Registrar abono</Link>
+                  <Link to="/calendario" className="text-xs font-semibold text-primary hover:underline">Calendario</Link>
+                </div>
               </li>
             ))}
           </ul>
         </div>
+      )}
+
+      {semana && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+              <span className="flex items-center gap-2">
+                <CalendarRange className="h-4 w-4" /> Balance semanal
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  compartirWhatsApp(mensajeResumenSemanal({ familia: familyName, ...semana }))
+                }
+              >
+                <Share2 className="mr-1 h-3.5 w-3.5" /> Compartir
+              </Button>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {formatDate(semana.desde)} — {formatDate(semana.hasta)}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <MiniStat label="Deuda pendiente" value={formatCOP(semana.deudaPendiente)} tone="text-foreground" />
+              <MiniStat label="Abonos de la semana" value={formatCOP(semana.abonosSemana)} tone="text-success" />
+              <MiniStat label="Ahorro acumulado" value={formatCOP(semana.ahorroTotal)} tone="text-primary" />
+              <MiniStat label="Caja menor semanal" value={formatCOP(semana.gastosSemana)} tone="text-warning-foreground" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-muted-foreground">Próximos pagos de esta semana</div>
+              {semana.proximos.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">Sin pagos programados esta semana. 🎉</p>
+              ) : (
+                <ul className="mt-1 space-y-1">
+                  {semana.proximos.map((p: any, i: number) => (
+                    <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 break-words">{p.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatCOP(p.monto)} · {formatDate(p.due_date)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -321,6 +423,15 @@ function Panel() {
           Estás como <b>invitado</b>: puedes ver todo, pero no registrar cambios.
         </div>
       )}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: string; tone: string }) {
+  return (
+    <div className="rounded-lg border bg-background p-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`break-words text-sm font-bold leading-tight ${tone}`}>{value}</div>
     </div>
   );
 }
