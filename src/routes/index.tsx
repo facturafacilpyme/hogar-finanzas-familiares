@@ -2,17 +2,35 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Wallet, PiggyBank, Calendar, BellRing, Users, ShieldCheck } from "lucide-react";
+import {
+  Wallet,
+  PiggyBank,
+  Calendar,
+  BellRing,
+  Users,
+  ShieldCheck,
+  Receipt,
+  BarChart3,
+  HandCoins,
+  History,
+  ScanLine,
+  WifiOff,
+  Smartphone,
+  MessageCircle,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HogarFin — Organiza las finanzas de tu familia" },
-      { name: "description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
-      { property: "og:title", content: "HogarFin — Organiza las finanzas de tu familia" },
-      { property: "og:description", content: "App familiar para controlar deudas, asignar pagos, ahorrar juntos y recibir alertas gratis." },
+      { title: "HogarFin — Deudas, ahorros y gastos de tu familia" },
+      { name: "description", content: "PWA gratuita para varias familias: deudas a cuotas, abonos con comprobante, caja menor con presupuestos y OCR, metas de ahorro, reportes en Excel/PDF y avisos por WhatsApp." },
+      { property: "og:title", content: "HogarFin — Deudas, ahorros y gastos de tu familia" },
+      { property: "og:description", content: "PWA gratuita para varias familias: deudas a cuotas, abonos con comprobante, caja menor con presupuestos y OCR, metas de ahorro, reportes en Excel/PDF y avisos por WhatsApp." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://hogar-fin.lovable.app/" }],
   }),
   component: Landing,
 });
