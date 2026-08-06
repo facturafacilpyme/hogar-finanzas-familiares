@@ -1,54 +1,43 @@
-## Multi-familia (multi-tenant) para HogarFin
+## HogarFin — pendientes
 
-Hoy toda la data es global: un solo espacio compartido. Vamos a aislar cada familia para que muchos hogares usen la app sin verse entre sí.
+El modelo multi-familia del plan anterior **está implementado y en uso** (tablas `families` /
+`family_members`, `family_id` en todo el dominio, RLS por familia, alta con familia propia o por
+invitación, selector de familia en el encabezado y página "Mi familia"). Ese plan queda cerrado.
 
-### Modelo
+Lo que sigue abierto de la última tanda de mejoras:
 
-- Nueva tabla `families` (id, name, created_by, created_at).
-- Nueva tabla `family_members` (family_id, user_id, role: admin | miembro | invitado, joined_at) — reemplaza a `user_roles`.
-- Todas las tablas del dominio ganan `family_id NOT NULL`:
-  `debts`, `debt_members`, `payments`, `savings_goals`, `savings_contributions`, `expenses`, `notifications`, `activity_log`, `invitations`.
-- Función `is_family_member(uid, fid)` y `family_role(uid, fid)` SECURITY DEFINER para RLS sin recursión.
+### 1. Estrategia de desendeudamiento (Reportes / Deudas)
+`src/lib/strategy.ts` ya tiene `construirPlan` (Bola de Nieve vs. Avalancha) pero **no está
+conectado a ninguna pantalla**. Falta la pestaña en Reportes que muestre ambos planes, el orden
+sugerido de pago y el ahorro estimado en intereses.
 
-### Alta y pertenencia
+### 2. Reparto de deuda por ingresos
+`family_members.monthly_income` existe en la base de datos pero no se captura ni se usa.
+Falta: campo de ingreso mensual en "Mi familia" y botón "Calcular % por ingresos" al asignar
+responsables de una deuda.
 
-- Al registrarse un usuario:
-  - Trigger crea `profile` (ya existe) **y** crea una **familia propia** con `name = "Familia de {nombre}"` + `family_members(role=admin)`.
-  - Se elimina la lógica "primer usuario = admin global".
-- Un usuario puede pertenecer a varias familias en el futuro, pero por ahora la UI trabaja con **una familia activa** (la primera de la que sea miembro; si es admin de la suya, esa).
+### 3. Gamificación de Ahorros
+En la base ya existen `badges`, `savings_goals.is_challenge`, `goal_kind`, `period_start` y
+`period_end`, pero la página de Ahorros no los usa. Falta:
+- Retos semanales colectivos (crear reto con periodo y meta común).
+- Ranking de aportantes y entrega automática de insignias.
+- Fondo de Reserva Familiar como `goal_kind` especial, con regla de uso para cubrir la cuota de un
+  miembro en emergencia.
 
-### Invitaciones
+### 4. Acciones rápidas en notificaciones
+`NotificationBell` solo marca como leído y navega. Falta el botón de un toque
+(p. ej. "Registrar abono" / "Ver deuda") según `type` y `related_id`.
 
-- `invitations` gana `family_id`. El admin genera link **para su familia**.
-- `redeem_invitation(token)` inserta al usuario en `family_members` de esa familia con el rol de la invitación (invitado por defecto). Ya no toca `user_roles`.
-- Un usuario que acepta una invitación queda además como miembro de esa otra familia (podrá cambiar entre familias más adelante; en esta entrega mostramos la propia por defecto o la última aceptada).
+### 5. OCR fuera de Caja Menor
+`OcrScan` solo está en el registro de gastos. Pendiente reutilizarlo al registrar abonos y al subir
+el comprobante de pago total de una deuda.
 
-### RLS (resumen no técnico)
+### 6. Paginación / scroll infinito
+Deudas, Abonos e Historial cargan todo de una (Historial con `limit(500)`). Falta paginación o
+carga incremental cuando el volumen crezca.
 
-- Ver/registrar deudas, abonos, ahorros, gastos, notificaciones e historial: solo si eres miembro de la familia dueña del registro.
-- Editar/eliminar deudas y gestionar miembros/invitaciones: solo admin de esa familia.
-- Invitados: solo lectura dentro de su familia.
-
-### Frontend
-
-- `useAuth` expone `currentFamilyId` y `role` (dentro de esa familia).
-- Selector de familia en el header cuando el usuario pertenece a más de una.
-- Todos los queries filtran por `family_id = currentFamilyId` y los `insert` lo incluyen (server-side también lo enforza vía RLS + default).
-- Nueva página **Mi familia** (admin) para renombrar la familia.
-- `Miembros` sigue existiendo pero lista solo miembros de la familia activa; el admin puede cambiar roles **dentro de su familia**.
-
-### Migración de datos existentes
-
-Solo hay 2 usuarios de prueba. Para no complicar:
-- Se crea una familia "Familia demo" con los datos actuales asignados a ella.
-- `stiven.arroyave05@gmail.com` queda como admin de esa familia; `facturafacilpyme@gmail.com` como miembro.
-- A partir de ahí, cada nuevo registro crea su propia familia.
-
-### Alcance de esta entrega
-
-1. Migración SQL: `families`, `family_members`, `family_id` en todas las tablas, RLS nueva, trigger de creación de familia al registrar, `redeem_invitation` v2, backfill de datos existentes, drop de `user_roles` y `has_role`.
-2. `useAuth` con `currentFamilyId`.
-3. Ajuste de todas las páginas (`panel`, `deudas`, `ahorros`, `caja-menor`, `calendario`, `reportes`, `historial`, `miembros`, invitaciones, `NotificationBell`) para filtrar/insertar por familia.
-4. Página **Mi familia** mínima (renombrar).
-
-¿Apruebo y arranco así, o quieres ajustar algo (p. ej. permitir varias familias por usuario ya desde ahora con selector visible siempre, o dejar que el usuario elija el nombre de su familia al registrarse)?
+### Decisiones abiertas
+- ¿El Fondo de Reserva descuenta automáticamente de la deuda del miembro cubierto, o solo queda
+  registrado como aporte y el ajuste se hace a mano?
+- ¿Las insignias se otorgan desde el cliente al cumplir la meta, o con un trigger en la base?
+- ¿Los retos semanales se cierran solos al terminar el periodo o los cierra el admin?
