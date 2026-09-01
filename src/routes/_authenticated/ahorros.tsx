@@ -162,12 +162,19 @@ function Ahorros() {
   );
 }
 
-function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAdmin, userId, familyId, familyName, onChange }: any) {
+function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAdmin, userId, familyId, familyName, debts, debtMembers, onChange }: any) {
   const [openContrib, setOpenContrib] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [openReserve, setOpenReserve] = useState(false);
   const [breaking, setBreaking] = useState(false);
   const [askRecreate, setAskRecreate] = useState(false);
   const confirmar = useConfirm();
+
+  const esReto = !!g.is_challenge;
+  const esReserva = g.goal_kind === "reserva";
+  const hoy = new Date().toISOString().slice(0, 10);
+  // lazy fallback: un reto vencido se muestra cerrado aunque el job no haya corrido
+  const cerrado = esReto && (!!g.closed_at || (!!g.period_end && g.period_end < hoy));
 
   const target = Number(g.target_amount);
   const current = Number(g.current_amount);
@@ -183,6 +190,16 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
       .filter((c: any) => c.user_id === uid)
       .reduce((s: number, c: any) => s + (c.kind === "retiro" ? -Number(c.amount) : Number(c.amount)), 0);
   const cuota = asignados.length ? target / asignados.length : target;
+
+  const ranking = useMemo(() => {
+    const map = new Map<string, number>();
+    contribs.forEach((c: any) => {
+      if (c.kind === "retiro") return;
+      map.set(c.user_id, (map.get(c.user_id) ?? 0) + Number(c.amount));
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [contribs]);
+  const maxAporte = ranking[0]?.[1] ?? 0;
 
   async function romper() {
     const ok = await confirmar({
