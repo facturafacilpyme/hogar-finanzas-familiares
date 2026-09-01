@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, PiggyBank, Trophy, Unlock, Search, Upload, Pencil, Trash2 } from "lucide-react";
+import { Plus, PiggyBank, Trophy, Unlock, Search, Upload, Pencil, Trash2, Medal, Shield, Flag } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { uploadProof } from "@/lib/storage";
 import { ProofLink } from "@/components/ProofLink";
@@ -40,15 +40,21 @@ function Ahorros() {
   const [goalMembers, setGoalMembers] = useState<any[]>([]);
   const [contribs, setContribs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
+  const [debtMembers, setDebtMembers] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
 
   const load = useCallback(async () => {
     if (!familyId) return;
-    const [{ data: g }, { data: gm }, { data: c }, { data: fm }] = await Promise.all([
+    const [{ data: g }, { data: gm }, { data: c }, { data: fm }, { data: b }, { data: d }, { data: dm }] = await Promise.all([
       supabase.from("savings_goals").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
       supabase.from("savings_goal_members").select("*").eq("family_id", familyId),
       supabase.from("savings_contributions").select("*").eq("family_id", familyId).order("contribution_date", { ascending: false }),
       supabase.from("family_members").select("user_id").eq("family_id", familyId),
+      supabase.from("badges").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
+      supabase.from("debts").select("id, name, status").eq("family_id", familyId).neq("status", "pagada"),
+      supabase.from("debt_members").select("*").eq("family_id", familyId),
     ]);
     const ids = (fm ?? []).map((x: any) => x.user_id);
     const { data: profs } = ids.length
@@ -58,6 +64,9 @@ function Ahorros() {
     setGoalMembers(gm ?? []);
     setContribs(c ?? []);
     setProfiles(profs ?? []);
+    setBadges(b ?? []);
+    setDebts(d ?? []);
+    setDebtMembers(dm ?? []);
   }, [familyId]);
 
   useEffect(() => { load(); }, [load]);
