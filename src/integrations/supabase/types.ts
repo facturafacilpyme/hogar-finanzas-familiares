@@ -634,6 +634,7 @@ export type Database = {
       savings_goals: {
         Row: {
           broken_at: string | null
+          closed_at: string | null
           created_at: string
           created_by: string
           current_amount: number
@@ -649,6 +650,7 @@ export type Database = {
         }
         Insert: {
           broken_at?: string | null
+          closed_at?: string | null
           created_at?: string
           created_by: string
           current_amount?: number
@@ -664,6 +666,7 @@ export type Database = {
         }
         Update: {
           broken_at?: string | null
+          closed_at?: string | null
           created_at?: string
           created_by?: string
           current_amount?: number
@@ -700,6 +703,7 @@ export type Database = {
         Args: { _family_id: string; _user_id: string }
         Returns: boolean
       }
+      close_expired_challenges: { Args: never; Returns: number }
       family_role: {
         Args: { _family_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -737,6 +741,15 @@ export type Database = {
           out_family_id: string
           out_role: Database["public"]["Enums"]["app_role"]
         }[]
+      }
+      use_reserve_for_debt: {
+        Args: {
+          _amount: number
+          _debt_id: string
+          _goal_id: string
+          _user_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, PiggyBank, Trophy, Unlock, Search, Upload, Pencil, Trash2 } from "lucide-react";
+import { Plus, PiggyBank, Trophy, Unlock, Search, Upload, Pencil, Trash2, Medal, Shield, Flag } from "lucide-react";
 import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
 import { uploadProof } from "@/lib/storage";
 import { ProofLink } from "@/components/ProofLink";
@@ -40,15 +40,21 @@ function Ahorros() {
   const [goalMembers, setGoalMembers] = useState<any[]>([]);
   const [contribs, setContribs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
+  const [debtMembers, setDebtMembers] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
 
   const load = useCallback(async () => {
     if (!familyId) return;
-    const [{ data: g }, { data: gm }, { data: c }, { data: fm }] = await Promise.all([
+    const [{ data: g }, { data: gm }, { data: c }, { data: fm }, { data: b }, { data: d }, { data: dm }] = await Promise.all([
       supabase.from("savings_goals").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
       supabase.from("savings_goal_members").select("*").eq("family_id", familyId),
       supabase.from("savings_contributions").select("*").eq("family_id", familyId).order("contribution_date", { ascending: false }),
       supabase.from("family_members").select("user_id").eq("family_id", familyId),
+      supabase.from("badges").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
+      supabase.from("debts").select("id, name, status").eq("family_id", familyId).neq("status", "pagada"),
+      supabase.from("debt_members").select("*").eq("family_id", familyId),
     ]);
     const ids = (fm ?? []).map((x: any) => x.user_id);
     const { data: profs } = ids.length
@@ -58,6 +64,9 @@ function Ahorros() {
     setGoalMembers(gm ?? []);
     setContribs(c ?? []);
     setProfiles(profs ?? []);
+    setBadges(b ?? []);
+    setDebts(d ?? []);
+    setDebtMembers(dm ?? []);
   }, [familyId]);
 
   useEffect(() => { load(); }, [load]);
@@ -92,34 +101,49 @@ function Ahorros() {
       </Dialog>
 
       <Tabs defaultValue="metas">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="metas">Metas</TabsTrigger>
+          <TabsTrigger value="retos">Retos</TabsTrigger>
+          <TabsTrigger value="insignias">Insignias</TabsTrigger>
           <TabsTrigger value="aportes">Aportes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="metas" className="mt-4 space-y-3">
-          {goals.length === 0 ? (
-            <Card><CardContent className="p-10 text-center text-muted-foreground">Aún no hay metas.</CardContent></Card>
-          ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
-              {goals.map((g) => (
-                <GoalCard
-                  key={g.id}
-                  goal={g}
-                  members={goalMembers.filter((m) => m.goal_id === g.id)}
-                  contribs={contribs.filter((c) => c.goal_id === g.id)}
-                  profiles={profiles}
-                  nameOf={nameOf}
-                  canWrite={canWrite}
-                  isAdmin={isAdmin}
-                  userId={user!.id}
-                  familyId={familyId!}
-                  familyName={familyName}
-                  onChange={load}
-                />
-              ))}
-            </div>
-          )}
+        {(["metas", "retos"] as const).map((tab) => {
+          const list = goals.filter((g) => (tab === "retos" ? g.is_challenge : !g.is_challenge));
+          return (
+            <TabsContent key={tab} value={tab} className="mt-4 space-y-3">
+              {list.length === 0 ? (
+                <Card><CardContent className="p-10 text-center text-muted-foreground">
+                  {tab === "retos" ? "Aún no hay retos semanales." : "Aún no hay metas."}
+                </CardContent></Card>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {list.map((g) => (
+                    <GoalCard
+                      key={g.id}
+                      goal={g}
+                      members={goalMembers.filter((m) => m.goal_id === g.id)}
+                      contribs={contribs.filter((c) => c.goal_id === g.id)}
+                      profiles={profiles}
+                      nameOf={nameOf}
+                      canWrite={canWrite}
+                      isAdmin={isAdmin}
+                      userId={user!.id}
+                      familyId={familyId!}
+                      familyName={familyName}
+                      debts={debts}
+                      debtMembers={debtMembers}
+                      onChange={load}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          );
+        })}
+
+        <TabsContent value="insignias" className="mt-4">
+          <BadgesTab badges={badges} nameOf={nameOf} profiles={profiles} />
         </TabsContent>
 
         <TabsContent value="aportes" className="mt-4">
@@ -138,12 +162,19 @@ function Ahorros() {
   );
 }
 
-function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAdmin, userId, familyId, familyName, onChange }: any) {
+function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAdmin, userId, familyId, familyName, debts, debtMembers, onChange }: any) {
   const [openContrib, setOpenContrib] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [openReserve, setOpenReserve] = useState(false);
   const [breaking, setBreaking] = useState(false);
   const [askRecreate, setAskRecreate] = useState(false);
   const confirmar = useConfirm();
+
+  const esReto = !!g.is_challenge;
+  const esReserva = g.goal_kind === "reserva";
+  const hoy = new Date().toISOString().slice(0, 10);
+  // lazy fallback: un reto vencido se muestra cerrado aunque el job no haya corrido
+  const cerrado = esReto && (!!g.closed_at || (!!g.period_end && g.period_end < hoy));
 
   const target = Number(g.target_amount);
   const current = Number(g.current_amount);
@@ -159,6 +190,16 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
       .filter((c: any) => c.user_id === uid)
       .reduce((s: number, c: any) => s + (c.kind === "retiro" ? -Number(c.amount) : Number(c.amount)), 0);
   const cuota = asignados.length ? target / asignados.length : target;
+
+  const ranking = useMemo(() => {
+    const map = new Map<string, number>();
+    contribs.forEach((c: any) => {
+      if (c.kind === "retiro") return;
+      map.set(c.user_id, (map.get(c.user_id) ?? 0) + Number(c.amount));
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [contribs]);
+  const maxAporte = ranking[0]?.[1] ?? 0;
 
   async function romper() {
     const ok = await confirmar({
@@ -219,8 +260,17 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
             <h3 className="min-w-0 break-words font-semibold">{g.name}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {esReserva && <Badge variant="secondary" className="gap-1"><Shield className="h-3 w-3" /> Fondo de Reserva</Badge>}
+            {esReto && (
+              cerrado
+                ? <Badge variant="secondary" className="gap-1"><Flag className="h-3 w-3" /> Reto cerrado</Badge>
+                : <Badge className="gap-1"><Flag className="h-3 w-3" /> Reto</Badge>
+            )}
+            {esReto && g.period_start && g.period_end && (
+              <span>{formatDate(g.period_start)} – {formatDate(g.period_end)}</span>
+            )}
             {g.broken_at && <Badge variant="outline">Rota {formatDate(g.broken_at)}</Badge>}
-            {g.due_date && <span>{formatDate(g.due_date)}</span>}
+            {g.due_date && !esReto && <span>{formatDate(g.due_date)}</span>}
           </div>
         </div>
 
@@ -243,6 +293,28 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
           </div>
         )}
 
+        {esReto ? (
+          <div className="mt-4 space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground">Ranking de aportantes</div>
+            {ranking.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nadie ha aportado todavía.</p>
+            ) : (
+              ranking.map(([uid, ap], i) => (
+                <div key={uid}>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex min-w-0 items-center gap-1.5 break-words">
+                      {i === 0 && <Medal className="h-3.5 w-3.5 shrink-0 text-warning" />}
+                      <span className="text-muted-foreground">{i + 1}.</span> {nameOf(uid)}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">{formatCOP(ap)}</span>
+                  </div>
+                  <Progress value={maxAporte ? (ap / maxAporte) * 100 : 0} className="mt-1 h-1.5 transition-all duration-700" />
+                </div>
+              ))
+            )}
+            {cerrado && <p className="text-xs text-muted-foreground">El reto terminó. Las insignias se otorgan automáticamente.</p>}
+          </div>
+        ) : (
         <div className="mt-4 space-y-2">
           <div className="text-xs font-semibold text-muted-foreground">Responsables</div>
           {asignados.length === 0 ? (
@@ -283,10 +355,16 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
             })
           )}
         </div>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {canWrite && !g.broken_at && (
+          {canWrite && !g.broken_at && !cerrado && (
             <Button size="sm" variant="outline" className="flex-1" onClick={() => setOpenContrib(true)}>Aportar</Button>
+          )}
+          {esReserva && isAdmin && current > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setOpenReserve(true)}>
+              <Shield className="mr-1 h-4 w-4" /> Usar fondo
+            </Button>
           )}
           {isAdmin && current > 0 && (
             <Button size="sm" variant="secondary" disabled={breaking} onClick={romper}>
