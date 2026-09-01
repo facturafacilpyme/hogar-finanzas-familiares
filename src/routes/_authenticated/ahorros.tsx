@@ -260,8 +260,17 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
             <h3 className="min-w-0 break-words font-semibold">{g.name}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {esReserva && <Badge variant="secondary" className="gap-1"><Shield className="h-3 w-3" /> Fondo de Reserva</Badge>}
+            {esReto && (
+              cerrado
+                ? <Badge variant="secondary" className="gap-1"><Flag className="h-3 w-3" /> Reto cerrado</Badge>
+                : <Badge className="gap-1"><Flag className="h-3 w-3" /> Reto</Badge>
+            )}
+            {esReto && g.period_start && g.period_end && (
+              <span>{formatDate(g.period_start)} – {formatDate(g.period_end)}</span>
+            )}
             {g.broken_at && <Badge variant="outline">Rota {formatDate(g.broken_at)}</Badge>}
-            {g.due_date && <span>{formatDate(g.due_date)}</span>}
+            {g.due_date && !esReto && <span>{formatDate(g.due_date)}</span>}
           </div>
         </div>
 
