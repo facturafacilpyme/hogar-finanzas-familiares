@@ -101,34 +101,49 @@ function Ahorros() {
       </Dialog>
 
       <Tabs defaultValue="metas">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="metas">Metas</TabsTrigger>
+          <TabsTrigger value="retos">Retos</TabsTrigger>
+          <TabsTrigger value="insignias">Insignias</TabsTrigger>
           <TabsTrigger value="aportes">Aportes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="metas" className="mt-4 space-y-3">
-          {goals.length === 0 ? (
-            <Card><CardContent className="p-10 text-center text-muted-foreground">Aún no hay metas.</CardContent></Card>
-          ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
-              {goals.map((g) => (
-                <GoalCard
-                  key={g.id}
-                  goal={g}
-                  members={goalMembers.filter((m) => m.goal_id === g.id)}
-                  contribs={contribs.filter((c) => c.goal_id === g.id)}
-                  profiles={profiles}
-                  nameOf={nameOf}
-                  canWrite={canWrite}
-                  isAdmin={isAdmin}
-                  userId={user!.id}
-                  familyId={familyId!}
-                  familyName={familyName}
-                  onChange={load}
-                />
-              ))}
-            </div>
-          )}
+        {(["metas", "retos"] as const).map((tab) => {
+          const list = goals.filter((g) => (tab === "retos" ? g.is_challenge : !g.is_challenge));
+          return (
+            <TabsContent key={tab} value={tab} className="mt-4 space-y-3">
+              {list.length === 0 ? (
+                <Card><CardContent className="p-10 text-center text-muted-foreground">
+                  {tab === "retos" ? "Aún no hay retos semanales." : "Aún no hay metas."}
+                </CardContent></Card>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {list.map((g) => (
+                    <GoalCard
+                      key={g.id}
+                      goal={g}
+                      members={goalMembers.filter((m) => m.goal_id === g.id)}
+                      contribs={contribs.filter((c) => c.goal_id === g.id)}
+                      profiles={profiles}
+                      nameOf={nameOf}
+                      canWrite={canWrite}
+                      isAdmin={isAdmin}
+                      userId={user!.id}
+                      familyId={familyId!}
+                      familyName={familyName}
+                      debts={debts}
+                      debtMembers={debtMembers}
+                      onChange={load}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          );
+        })}
+
+        <TabsContent value="insignias" className="mt-4">
+          <BadgesTab badges={badges} nameOf={nameOf} profiles={profiles} />
         </TabsContent>
 
         <TabsContent value="aportes" className="mt-4">
