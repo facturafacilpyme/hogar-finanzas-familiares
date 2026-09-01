@@ -355,10 +355,16 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
             })
           )}
         </div>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {canWrite && !g.broken_at && (
+          {canWrite && !g.broken_at && !cerrado && (
             <Button size="sm" variant="outline" className="flex-1" onClick={() => setOpenContrib(true)}>Aportar</Button>
+          )}
+          {esReserva && isAdmin && current > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setOpenReserve(true)}>
+              <Shield className="mr-1 h-4 w-4" /> Usar fondo
+            </Button>
           )}
           {isAdmin && current > 0 && (
             <Button size="sm" variant="secondary" disabled={breaking} onClick={romper}>
