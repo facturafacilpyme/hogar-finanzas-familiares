@@ -293,6 +293,28 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
           </div>
         )}
 
+        {esReto ? (
+          <div className="mt-4 space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground">Ranking de aportantes</div>
+            {ranking.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nadie ha aportado todavía.</p>
+            ) : (
+              ranking.map(([uid, ap], i) => (
+                <div key={uid}>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex min-w-0 items-center gap-1.5 break-words">
+                      {i === 0 && <Medal className="h-3.5 w-3.5 shrink-0 text-warning" />}
+                      <span className="text-muted-foreground">{i + 1}.</span> {nameOf(uid)}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">{formatCOP(ap)}</span>
+                  </div>
+                  <Progress value={maxAporte ? (ap / maxAporte) * 100 : 0} className="mt-1 h-1.5 transition-all duration-700" />
+                </div>
+              ))
+            )}
+            {cerrado && <p className="text-xs text-muted-foreground">El reto terminó. Las insignias se otorgan automáticamente.</p>}
+          </div>
+        ) : (
         <div className="mt-4 space-y-2">
           <div className="text-xs font-semibold text-muted-foreground">Responsables</div>
           {asignados.length === 0 ? (
