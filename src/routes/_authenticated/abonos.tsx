@@ -19,6 +19,9 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/abonos")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    debtId: typeof search.debtId === "string" ? search.debtId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Abonos — HogarFin" },
@@ -32,6 +35,7 @@ export const Route = createFileRoute("/_authenticated/abonos")({
 
 function Abonos() {
   const { familyId, user, role } = useAuth();
+  const { debtId } = Route.useSearch();
   const [payments, setPayments] = useState<any[]>([]);
   const [debts, setDebts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -40,6 +44,7 @@ function Abonos() {
   const [debt, setDebt] = useState("todas");
   const [editing, setEditing] = useState<any>(null);
   const confirmar = useConfirm();
+
 
   const load = useCallback(async () => {
     if (!familyId) return;
