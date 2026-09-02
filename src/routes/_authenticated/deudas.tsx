@@ -71,6 +71,17 @@ function Deudas() {
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(familyId, load);
 
+  useEffect(() => {
+    if (!debtId || debts.length === 0) return;
+    if (!debts.some((d) => d.id === debtId)) {
+      toast.info("Esa deuda ya no existe.");
+      return;
+    }
+    const el = document.getElementById(`debt-${debtId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [debtId, debts]);
+
+
   const isAdmin = role === "admin";
 
   const withStatus = useMemo(
