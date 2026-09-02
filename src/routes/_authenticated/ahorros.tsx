@@ -613,16 +613,24 @@ function GoalForm({ goal, existingMembers = [], profiles, userId, familyId, onDo
   const editing = !!goal;
   const [sel, setSel] = useState<string[]>(existingMembers.map((m: any) => m.user_id));
   const [loading, setLoading] = useState(false);
+  const [tipo, setTipo] = useState<string>(
+    goal?.is_challenge ? "reto" : goal?.goal_kind === "reserva" ? "reserva" : "meta",
+  );
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const fd = new FormData(e.currentTarget);
-    const payload = {
+    const esReto = tipo === "reto";
+    const payload: any = {
       name: String(fd.get("name")),
       target_amount: Number(fd.get("target_amount")),
-      due_date: String(fd.get("due_date") || "") || null,
+      due_date: esReto ? null : String(fd.get("due_date") || "") || null,
       family_id: familyId,
+      is_challenge: esReto,
+      goal_kind: tipo === "reserva" ? "reserva" : "normal",
+      period_start: esReto ? String(fd.get("period_start") || "") || null : null,
+      period_end: esReto ? String(fd.get("period_end") || "") || null : null,
     };
 
     let goalId = goal?.id as string | undefined;
@@ -647,11 +655,33 @@ function GoalForm({ goal, existingMembers = [], profiles, userId, familyId, onDo
     onDone();
   }
 
+  const hoy = new Date().toISOString().slice(0, 10);
+  const enUnaSemana = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+
   return (
     <form onSubmit={submit} className="space-y-3">
+      <div>
+        <Label>Tipo</Label>
+        <Select value={tipo} onValueChange={setTipo}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="meta">Meta de ahorro</SelectItem>
+            <SelectItem value="reto">Reto semanal colectivo</SelectItem>
+            <SelectItem value="reserva">Fondo de Reserva Familiar</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div><Label>Nombre</Label><Input name="name" required placeholder="Vacaciones, Emergencia…" defaultValue={goal?.name} /></div>
       <div><Label>Meta ($)</Label><Input name="target_amount" type="number" step="0.01" min="1" required defaultValue={goal?.target_amount} /></div>
-      <div><Label>Fecha objetivo</Label><Input name="due_date" type="date" defaultValue={goal?.due_date ?? ""} /></div>
+      {tipo === "reto" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div><Label>Inicio</Label><Input name="period_start" type="date" required defaultValue={goal?.period_start ?? hoy} /></div>
+          <div><Label>Fin</Label><Input name="period_end" type="date" required defaultValue={goal?.period_end ?? enUnaSemana} /></div>
+        </div>
+      ) : (
+        <div><Label>Fecha objetivo</Label><Input name="due_date" type="date" defaultValue={goal?.due_date ?? ""} /></div>
+      )}
+
       <div className="rounded-lg border p-3">
         <Label className="mb-2 block">¿A quién le corresponde esta meta?</Label>
         <div className="space-y-2">
