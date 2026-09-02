@@ -24,6 +24,9 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { queuedWrite } from "@/lib/syncQueue";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    debtId: typeof search.debtId === "string" ? search.debtId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Deudas — HogarFin" },
@@ -37,6 +40,7 @@ export const Route = createFileRoute("/_authenticated/deudas")({
 
 function Deudas() {
   const { user, role, familyId, familyName } = useAuth();
+  const { debtId } = Route.useSearch();
   const [debts, setDebts] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -44,6 +48,7 @@ function Deudas() {
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [orden, setOrden] = useState<string>("fecha");
   const [openNew, setOpenNew] = useState(false);
+
 
   const load = useCallback(async () => {
     if (!familyId) return;
