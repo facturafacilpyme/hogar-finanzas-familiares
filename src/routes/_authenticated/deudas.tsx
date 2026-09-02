@@ -24,6 +24,9 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { queuedWrite } from "@/lib/syncQueue";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    debtId: typeof search.debtId === "string" ? search.debtId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Deudas — HogarFin" },
@@ -37,6 +40,7 @@ export const Route = createFileRoute("/_authenticated/deudas")({
 
 function Deudas() {
   const { user, role, familyId, familyName } = useAuth();
+  const { debtId } = Route.useSearch();
   const [debts, setDebts] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -44,6 +48,7 @@ function Deudas() {
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [orden, setOrden] = useState<string>("fecha");
   const [openNew, setOpenNew] = useState(false);
+
 
   const load = useCallback(async () => {
     if (!familyId) return;
@@ -65,6 +70,17 @@ function Deudas() {
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(familyId, load);
+
+  useEffect(() => {
+    if (!debtId || debts.length === 0) return;
+    if (!debts.some((d) => d.id === debtId)) {
+      toast.info("Esa deuda ya no existe.");
+      return;
+    }
+    const el = document.getElementById(`debt-${debtId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [debtId, debts]);
+
 
   const isAdmin = role === "admin";
 
@@ -141,22 +157,28 @@ function Deudas() {
       ) : (
         <div className="grid gap-3">
           {filtered.map(({ debt, status }) => (
-            <DebtCard
+            <div
               key={debt.id}
-              debt={debt}
-              status={status}
-              members={members.filter((m) => m.debt_id === debt.id)}
-              profiles={profiles}
-              payments={payments.filter((p) => p.debt_id === debt.id)}
-              onChange={load}
-              canPay={role !== "invitado"}
-              isAdmin={isAdmin}
-              userId={user!.id}
-              familyId={familyId!}
-              familyName={familyName}
-            />
+              id={`debt-${debt.id}`}
+              className={debtId === debt.id ? "rounded-2xl ring-2 ring-primary ring-offset-2 ring-offset-background" : undefined}
+            >
+              <DebtCard
+                debt={debt}
+                status={status}
+                members={members.filter((m) => m.debt_id === debt.id)}
+                profiles={profiles}
+                payments={payments.filter((p) => p.debt_id === debt.id)}
+                onChange={load}
+                canPay={role !== "invitado"}
+                isAdmin={isAdmin}
+                userId={user!.id}
+                familyId={familyId!}
+                familyName={familyName}
+              />
+            </div>
           ))}
         </div>
+
       )}
     </div>
   );
