@@ -146,22 +146,28 @@ function Deudas() {
       ) : (
         <div className="grid gap-3">
           {filtered.map(({ debt, status }) => (
-            <DebtCard
+            <div
               key={debt.id}
-              debt={debt}
-              status={status}
-              members={members.filter((m) => m.debt_id === debt.id)}
-              profiles={profiles}
-              payments={payments.filter((p) => p.debt_id === debt.id)}
-              onChange={load}
-              canPay={role !== "invitado"}
-              isAdmin={isAdmin}
-              userId={user!.id}
-              familyId={familyId!}
-              familyName={familyName}
-            />
+              id={`debt-${debt.id}`}
+              className={debtId === debt.id ? "rounded-2xl ring-2 ring-primary ring-offset-2 ring-offset-background" : undefined}
+            >
+              <DebtCard
+                debt={debt}
+                status={status}
+                members={members.filter((m) => m.debt_id === debt.id)}
+                profiles={profiles}
+                payments={payments.filter((p) => p.debt_id === debt.id)}
+                onChange={load}
+                canPay={role !== "invitado"}
+                isAdmin={isAdmin}
+                userId={user!.id}
+                familyId={familyId!}
+                familyName={familyName}
+              />
+            </div>
           ))}
         </div>
+
       )}
     </div>
   );
