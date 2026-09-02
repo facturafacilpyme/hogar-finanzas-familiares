@@ -407,6 +407,21 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
           </DialogContent>
         </Dialog>
 
+        <Dialog open={openReserve} onOpenChange={setOpenReserve}>
+          <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
+            <DialogHeader><DialogTitle>Usar Fondo de Reserva</DialogTitle></DialogHeader>
+            <ReserveUseForm
+              goal={g}
+              disponible={current}
+              debts={debts}
+              debtMembers={debtMembers}
+              profiles={profiles}
+              nameOf={nameOf}
+              onDone={() => { setOpenReserve(false); onChange(); }}
+            />
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={askRecreate} onOpenChange={setAskRecreate}>
           <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
             <DialogHeader><DialogTitle>¿Volver a crear la meta?</DialogTitle></DialogHeader>
@@ -423,6 +438,119 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
     </Card>
   );
 }
+
+function ReserveUseForm({ goal, disponible, debts, debtMembers, profiles, nameOf, onDone }: any) {
+  const [debtId, setDebtId] = useState<string>(debts[0]?.id ?? "");
+  const [userId, setUserId] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
+  const responsables = useMemo(
+    () => debtMembers.filter((m: any) => m.debt_id === debtId),
+    [debtMembers, debtId],
+  );
+
+  useEffect(() => {
+    setUserId(responsables[0]?.user_id ?? "");
+  }, [debtId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const monto = Number(amount);
+    if (!debtId || !userId) return toast.error("Selecciona la deuda y el miembro");
+    if (!monto || monto <= 0) return toast.error("Monto inválido");
+    if (monto > disponible) return toast.error("El fondo no tiene saldo suficiente");
+    setLoading(true);
+    const { error } = await supabase.rpc("use_reserve_for_debt", {
+      _goal_id: goal.id,
+      _debt_id: debtId,
+      _user_id: userId,
+      _amount: monto,
+    });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Fondo aplicado a la deuda");
+    onDone();
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Disponible en el fondo: <b>{formatCOP(disponible)}</b>. Se registrará un retiro del fondo y un abono a la deuda del miembro.
+      </p>
+      <div>
+        <Label>Deuda</Label>
+        <Select value={debtId} onValueChange={setDebtId}>
+          <SelectTrigger><SelectValue placeholder="Selecciona una deuda" /></SelectTrigger>
+          <SelectContent>
+            {debts.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Miembro</Label>
+        <Select value={userId} onValueChange={setUserId}>
+          <SelectTrigger><SelectValue placeholder="Selecciona un miembro" /></SelectTrigger>
+          <SelectContent>
+            {(responsables.length
+              ? responsables.map((m: any) => ({ id: m.user_id, name: nameOf(m.user_id) }))
+              : profiles.map((p: any) => ({ id: p.id, name: p.name }))
+            ).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Monto ($)</Label>
+        <Input type="number" step="0.01" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      </div>
+      <DialogFooter>
+        <Button type="submit" disabled={loading || !debts.length}>{loading ? "Aplicando…" : "Aplicar al pago"}</Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+function BadgesTab({ badges, nameOf, profiles }: any) {
+  const porUsuario = useMemo(() => {
+    const map = new Map<string, any[]>();
+    badges.forEach((b: any) => {
+      map.set(b.user_id, [...(map.get(b.user_id) ?? []), b]);
+    });
+    return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
+  }, [badges]);
+
+  if (!badges.length) {
+    return (
+      <Card><CardContent className="p-10 text-center text-muted-foreground">
+        Aún no hay insignias. Se otorgan automáticamente al hacer el primer aporte, completar una meta o ganar un reto.
+      </CardContent></Card>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {porUsuario.map(([uid, list]) => (
+        <Card key={uid}>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="min-w-0 break-words font-semibold">{nameOf(uid) !== "—" ? nameOf(uid) : profiles.find((p: any) => p.id === uid)?.email ?? "Miembro"}</h3>
+              <Badge variant="secondary">{list.length} insignias</Badge>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {list.map((b: any) => (
+                <Badge key={b.id} variant="outline" className="gap-1">
+                  <Medal className="h-3 w-3 text-warning" />
+                  <span className="break-words">{b.label}</span>
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 
 function ContribForm({ goal, people, userId, onDone }: any) {
   const [file, setFile] = useState<File | null>(null);
@@ -485,16 +613,24 @@ function GoalForm({ goal, existingMembers = [], profiles, userId, familyId, onDo
   const editing = !!goal;
   const [sel, setSel] = useState<string[]>(existingMembers.map((m: any) => m.user_id));
   const [loading, setLoading] = useState(false);
+  const [tipo, setTipo] = useState<string>(
+    goal?.is_challenge ? "reto" : goal?.goal_kind === "reserva" ? "reserva" : "meta",
+  );
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const fd = new FormData(e.currentTarget);
-    const payload = {
+    const esReto = tipo === "reto";
+    const payload: any = {
       name: String(fd.get("name")),
       target_amount: Number(fd.get("target_amount")),
-      due_date: String(fd.get("due_date") || "") || null,
+      due_date: esReto ? null : String(fd.get("due_date") || "") || null,
       family_id: familyId,
+      is_challenge: esReto,
+      goal_kind: tipo === "reserva" ? "reserva" : "normal",
+      period_start: esReto ? String(fd.get("period_start") || "") || null : null,
+      period_end: esReto ? String(fd.get("period_end") || "") || null : null,
     };
 
     let goalId = goal?.id as string | undefined;
@@ -519,11 +655,33 @@ function GoalForm({ goal, existingMembers = [], profiles, userId, familyId, onDo
     onDone();
   }
 
+  const hoy = new Date().toISOString().slice(0, 10);
+  const enUnaSemana = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+
   return (
     <form onSubmit={submit} className="space-y-3">
+      <div>
+        <Label>Tipo</Label>
+        <Select value={tipo} onValueChange={setTipo}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="meta">Meta de ahorro</SelectItem>
+            <SelectItem value="reto">Reto semanal colectivo</SelectItem>
+            <SelectItem value="reserva">Fondo de Reserva Familiar</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div><Label>Nombre</Label><Input name="name" required placeholder="Vacaciones, Emergencia…" defaultValue={goal?.name} /></div>
       <div><Label>Meta ($)</Label><Input name="target_amount" type="number" step="0.01" min="1" required defaultValue={goal?.target_amount} /></div>
-      <div><Label>Fecha objetivo</Label><Input name="due_date" type="date" defaultValue={goal?.due_date ?? ""} /></div>
+      {tipo === "reto" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div><Label>Inicio</Label><Input name="period_start" type="date" required defaultValue={goal?.period_start ?? hoy} /></div>
+          <div><Label>Fin</Label><Input name="period_end" type="date" required defaultValue={goal?.period_end ?? enUnaSemana} /></div>
+        </div>
+      ) : (
+        <div><Label>Fecha objetivo</Label><Input name="due_date" type="date" defaultValue={goal?.due_date ?? ""} /></div>
+      )}
+
       <div className="rounded-lg border p-3">
         <Label className="mb-2 block">¿A quién le corresponde esta meta?</Label>
         <div className="space-y-2">
