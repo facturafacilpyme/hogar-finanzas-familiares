@@ -201,7 +201,7 @@ function Panel() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Link to="/deudas" className="text-xs font-semibold text-primary hover:underline">Registrar abono</Link>
+                  <Link to="/deudas" search={{ debtId: debt.id }} className="text-xs font-semibold text-primary hover:underline">Registrar abono</Link>
                   <Link to="/calendario" className="text-xs font-semibold text-primary hover:underline">Calendario</Link>
                 </div>
               </li>
