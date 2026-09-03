@@ -23,6 +23,9 @@ import { mensajeAhorro } from "@/lib/whatsapp";
 import { useConfirm } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/ahorros")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    goalId: typeof search.goalId === "string" ? search.goalId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Ahorros — HogarFin" },
@@ -36,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/ahorros")({
 
 function Ahorros() {
   const { user, role, familyId, familyName } = useAuth();
+  const { goalId } = Route.useSearch();
   const [goals, setGoals] = useState<any[]>([]);
   const [goalMembers, setGoalMembers] = useState<any[]>([]);
   const [contribs, setContribs] = useState<any[]>([]);
@@ -44,6 +48,7 @@ function Ahorros() {
   const [debts, setDebts] = useState<any[]>([]);
   const [debtMembers, setDebtMembers] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
+  const [tab, setTab] = useState("metas");
 
   const load = useCallback(async () => {
     if (!familyId) return;
@@ -71,6 +76,20 @@ function Ahorros() {
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(familyId, load);
+
+  useEffect(() => {
+    if (!goalId || goals.length === 0) return;
+    const g = goals.find((x) => x.id === goalId);
+    if (!g) {
+      toast.info("Esa meta ya no existe.");
+      return;
+    }
+    setTab(g.is_challenge ? "retos" : "metas");
+    const id = window.setTimeout(() => {
+      document.getElementById(`goal-${goalId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    return () => window.clearTimeout(id);
+  }, [goalId, goals]);
 
   const canWrite = role !== "invitado";
   const isAdmin = role === "admin";
@@ -100,7 +119,7 @@ function Ahorros() {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="metas">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="metas">Metas</TabsTrigger>
           <TabsTrigger value="retos">Retos</TabsTrigger>
@@ -108,39 +127,45 @@ function Ahorros() {
           <TabsTrigger value="aportes">Aportes</TabsTrigger>
         </TabsList>
 
-        {(["metas", "retos"] as const).map((tab) => {
-          const list = goals.filter((g) => (tab === "retos" ? g.is_challenge : !g.is_challenge));
+        {(["metas", "retos"] as const).map((t) => {
+          const list = goals.filter((g) => (t === "retos" ? g.is_challenge : !g.is_challenge));
           return (
-            <TabsContent key={tab} value={tab} className="mt-4 space-y-3">
+            <TabsContent key={t} value={t} className="mt-4 space-y-3">
               {list.length === 0 ? (
                 <Card><CardContent className="p-10 text-center text-muted-foreground">
-                  {tab === "retos" ? "Aún no hay retos semanales." : "Aún no hay metas."}
+                  {t === "retos" ? "Aún no hay retos semanales." : "Aún no hay metas."}
                 </CardContent></Card>
               ) : (
                 <div className="grid gap-3 lg:grid-cols-2">
                   {list.map((g) => (
-                    <GoalCard
+                    <div
                       key={g.id}
-                      goal={g}
-                      members={goalMembers.filter((m) => m.goal_id === g.id)}
-                      contribs={contribs.filter((c) => c.goal_id === g.id)}
-                      profiles={profiles}
-                      nameOf={nameOf}
-                      canWrite={canWrite}
-                      isAdmin={isAdmin}
-                      userId={user!.id}
-                      familyId={familyId!}
-                      familyName={familyName}
-                      debts={debts}
-                      debtMembers={debtMembers}
-                      onChange={load}
-                    />
+                      id={`goal-${g.id}`}
+                      className={goalId === g.id ? "rounded-2xl ring-2 ring-primary ring-offset-2 ring-offset-background" : undefined}
+                    >
+                      <GoalCard
+                        goal={g}
+                        members={goalMembers.filter((m) => m.goal_id === g.id)}
+                        contribs={contribs.filter((c) => c.goal_id === g.id)}
+                        profiles={profiles}
+                        nameOf={nameOf}
+                        canWrite={canWrite}
+                        isAdmin={isAdmin}
+                        userId={user!.id}
+                        familyId={familyId!}
+                        familyName={familyName}
+                        debts={debts}
+                        debtMembers={debtMembers}
+                        onChange={load}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
             </TabsContent>
           );
         })}
+
 
         <TabsContent value="insignias" className="mt-4">
           <BadgesTab badges={badges} nameOf={nameOf} profiles={profiles} />

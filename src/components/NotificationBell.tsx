@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -12,12 +13,28 @@ interface Notif {
   message: string;
   read: boolean;
   type: string;
+  related_id: string | null;
   created_at: string;
 }
 
+type Accion = { label: string; target: "deudas" | "abonos" | "ahorros" };
+
+const ACCIONES: Record<string, Accion> = {
+  nueva_deuda: { label: "Ver deuda", target: "deudas" },
+  por_vencer: { label: "Registrar abono", target: "deudas" },
+  en_mora: { label: "Registrar abono", target: "deudas" },
+  riesgo_mora: { label: "Registrar abono", target: "deudas" },
+  pago_total_pendiente: { label: "Subir comprobante", target: "deudas" },
+  comprobante_pendiente: { label: "Subir comprobante", target: "deudas" },
+  abono_registrado: { label: "Ver abonos", target: "abonos" },
+  meta_completada: { label: "Ver meta", target: "ahorros" },
+};
+
 export function NotificationBell() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<Notif[]>([]);
+  const [open, setOpen] = useState(false);
 
   async function load() {
     if (!user) return;
@@ -63,8 +80,31 @@ export function NotificationBell() {
     setItems((prev) => prev.map((i) => ({ ...i, read: true })));
   }
 
+  async function marcarUna(id: string) {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, read: true } : i)));
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
+  }
+
+  async function ejecutar(n: Notif) {
+    const accion = ACCIONES[n.type];
+    await marcarUna(n.id);
+    if (!accion || !n.related_id) {
+      setOpen(false);
+      toast.info("Esta notificación ya no tiene un registro asociado.");
+      return;
+    }
+    setOpen(false);
+    if (accion.target === "ahorros") {
+      navigate({ to: "/ahorros", search: { goalId: n.related_id } });
+    } else if (accion.target === "abonos") {
+      navigate({ to: "/abonos", search: { debtId: n.related_id } });
+    } else {
+      navigate({ to: "/deudas", search: { debtId: n.related_id } });
+    }
+  }
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4" />
@@ -88,12 +128,20 @@ export function NotificationBell() {
           {items.length === 0 ? (
             <div className="p-6 text-center text-sm text-muted-foreground">Sin notificaciones</div>
           ) : (
-            items.map((n) => (
-              <div key={n.id} className={`border-b p-3 text-sm ${!n.read ? "bg-accent/40" : ""}`}>
-                <div>{n.message}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{formatDate(n.created_at)}</div>
-              </div>
-            ))
+            items.map((n) => {
+              const accion = ACCIONES[n.type];
+              return (
+                <div key={n.id} className={`border-b p-3 text-sm ${!n.read ? "bg-accent/40" : ""}`}>
+                  <div className="break-words">{n.message}</div>
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">{formatDate(n.created_at)}</span>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => ejecutar(n)}>
+                      {accion?.label ?? "Ver detalle"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </PopoverContent>

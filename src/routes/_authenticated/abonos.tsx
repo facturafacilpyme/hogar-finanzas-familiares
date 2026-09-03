@@ -65,6 +65,16 @@ function Abonos() {
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(familyId, load);
 
+  useEffect(() => {
+    if (!debtId || debts.length === 0) return;
+    if (!debts.some((d) => d.id === debtId)) {
+      toast.info("Esa deuda ya no existe.");
+      setDebt("todas");
+      return;
+    }
+    setDebt(debtId);
+  }, [debtId, debts]);
+
   const isAdmin = role === "admin";
   const nameOf = (id: string) => profiles.find((p) => p.id === id)?.name ?? "—";
   const debtOf = (id: string) => debts.find((d) => d.id === id);

@@ -201,7 +201,7 @@ function Panel() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Link to="/deudas" className="text-xs font-semibold text-primary hover:underline">Registrar abono</Link>
+                  <Link to="/deudas" search={{ debtId: debt.id }} className="text-xs font-semibold text-primary hover:underline">Registrar abono</Link>
                   <Link to="/calendario" className="text-xs font-semibold text-primary hover:underline">Calendario</Link>
                 </div>
               </li>
@@ -401,7 +401,7 @@ function Panel() {
                   return (
                     <li key={g.id} className="py-3">
                       <div className="flex items-center justify-between gap-2 text-sm">
-                        <Link to="/ahorros" className="min-w-0 break-words font-medium hover:underline">{g.name}</Link>
+                        <Link to="/ahorros" search={{ goalId: g.id }} className="min-w-0 break-words font-medium hover:underline">{g.name}</Link>
                         <span className="shrink-0 text-xs text-muted-foreground">
                           {formatCOP(g.current_amount)} / {formatCOP(g.target_amount)}
                         </span>

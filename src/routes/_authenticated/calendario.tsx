@@ -170,7 +170,7 @@ function Calendario() {
                     </div>
                   </div>
                   <Button asChild size="sm" variant="outline" className="shrink-0">
-                    <Link to="/deudas">Registrar abono</Link>
+                    <Link to="/deudas" search={{ debtId: debt.id }}>Registrar abono</Link>
                   </Button>
                 </li>
               ))}

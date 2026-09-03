@@ -250,7 +250,11 @@ export function ReminderPopup() {
         <DialogFooter className="flex-col gap-2 sm:flex-row">
           <Button variant="outline" onClick={() => { snooze(); setOpen(false); }}>Recordarme más tarde</Button>
           <Button asChild onClick={() => { snooze(); setOpen(false); }}>
-            <Link to={items[0]?.kind === "meta" ? "/ahorros" : "/deudas"}>Ver y resolver ahora</Link>
+            {items[0]?.kind === "meta" ? (
+              <Link to="/ahorros" search={{ goalId: undefined }}>Ver y resolver ahora</Link>
+            ) : (
+              <Link to="/deudas" search={{ debtId: undefined }}>Ver y resolver ahora</Link>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
