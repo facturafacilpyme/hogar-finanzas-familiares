@@ -77,6 +77,20 @@ function Ahorros() {
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(familyId, load);
 
+  useEffect(() => {
+    if (!goalId || goals.length === 0) return;
+    const g = goals.find((x) => x.id === goalId);
+    if (!g) {
+      toast.info("Esa meta ya no existe.");
+      return;
+    }
+    setTab(g.is_challenge ? "retos" : "metas");
+    const id = window.setTimeout(() => {
+      document.getElementById(`goal-${goalId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    return () => window.clearTimeout(id);
+  }, [goalId, goals]);
+
   const canWrite = role !== "invitado";
   const isAdmin = role === "admin";
   const nameOf = (id: string) => profiles.find((p) => p.id === id)?.name ?? "—";
