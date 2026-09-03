@@ -23,6 +23,9 @@ import { mensajeAhorro } from "@/lib/whatsapp";
 import { useConfirm } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/ahorros")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    goalId: typeof search.goalId === "string" ? search.goalId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Ahorros — HogarFin" },
@@ -36,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/ahorros")({
 
 function Ahorros() {
   const { user, role, familyId, familyName } = useAuth();
+  const { goalId } = Route.useSearch();
   const [goals, setGoals] = useState<any[]>([]);
   const [goalMembers, setGoalMembers] = useState<any[]>([]);
   const [contribs, setContribs] = useState<any[]>([]);
@@ -44,6 +48,7 @@ function Ahorros() {
   const [debts, setDebts] = useState<any[]>([]);
   const [debtMembers, setDebtMembers] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
+  const [tab, setTab] = useState("metas");
 
   const load = useCallback(async () => {
     if (!familyId) return;
