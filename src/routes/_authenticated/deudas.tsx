@@ -433,7 +433,14 @@ function SettlementProofForm({ debt, userId, familyId, profiles, enMora, onDone 
       <p className="text-sm text-muted-foreground">
         Adjunta la evidencia del pago total de la factura de <b>{debt.name}</b>. Quedará disponible en el historial.
       </p>
+      <OcrScan
+        title="Leer comprobante del pago total"
+        hint="Toma o sube la foto del comprobante: se adjunta automáticamente y se leen sus datos."
+        onFile={(f) => setFile(f)}
+        onResult={() => {}}
+      />
       <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      {file && <p className="text-xs text-muted-foreground">Adjunto: {file.name}</p>}
 
       <div className="space-y-2 rounded-lg border p-3">
         <Label className="text-sm">
