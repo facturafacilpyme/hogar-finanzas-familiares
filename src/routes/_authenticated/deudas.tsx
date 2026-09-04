@@ -14,6 +14,7 @@ import { formatCOP, formatDate } from "@/lib/currency";
 import { debtStatus, memberBreakdown, STATUS_META, sum } from "@/lib/debts";
 import { uploadProof } from "@/lib/storage";
 import { ProofLink } from "@/components/ProofLink";
+import { OcrScan } from "@/components/OcrScan";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
