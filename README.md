@@ -73,7 +73,12 @@ Rutas protegidas bajo `src/routes/_authenticated/`:
   totales por persona.
 - **Calendario** (`/calendario`) — vencimientos del mes con semáforo y alertas de riesgo de mora.
 - **Ahorros** (`/ahorros`) — metas con progreso, aportes y retiros con comprobante, miembros por
-  meta, romper/restaurar meta (admin).
+  meta, romper/restaurar meta (admin), **retos colectivos** (`is_challenge`, `period_start`/
+  `period_end`) con cierre automático diario (`close_expired_challenges` + pg_cron) y fallback en
+  UI, **insignias** otorgadas por trigger en la base (`award_badges`, idempotente por
+  `UNIQUE(user_id, code, goal_id)`) y **Fondo de Reserva** (`goal_kind = 'reserva'`) con botón
+  "Usar fondo" que ejecuta la función transaccional `use_reserve_for_debt` (retiro + abono en una
+  sola transacción).
 - **Caja Menor** (`/caja-menor`) — gastos por categoría (`mercado`, `transporte`, `salud`,
   `servicios`, `otros`), **presupuestos mensuales por categoría** con semáforo verde/amarillo/rojo
   y aviso al superar el 90 %, y **lectura OCR de recibos** (server function con Lovable AI).
@@ -83,10 +88,16 @@ Rutas protegidas bajo `src/routes/_authenticated/`:
   invitaciones (7 días), eliminar miembros (`purgeFamilyMember`).
 - **Mi cuenta** (`/cuenta`) — nombre, teléfono y datos del perfil.
 
-Transversal: notificaciones en campana con realtime, pop-up de recordatorios por rol
+Transversal: notificaciones en campana con realtime y **acciones rápidas de un toque**
+(`NotificationBell`: "Ver deuda", "Registrar abono", "Subir comprobante" → `/deudas?debtId`;
+"Ver abonos" → `/abonos?debtId`; "Ver meta" → `/ahorros?goalId`; marcan la notificación como leída
+individualmente y avisan sin navegar si no hay registro asociado), pop-up de recordatorios por rol
 (`ReminderPopup`), avisos por WhatsApp (`wa.me`, sin costo), cola de sincronización offline en
 IndexedDB con indicador (`SyncStatus`), diálogos de confirmación propios (sin `alert`/`confirm`),
 instalación como PWA.
+
+El modelo **multi-familia** está cerrado: todo el dominio va aislado por `family_id` con RLS,
+alta con familia propia o por invitación, selector de familia y página "Mi familia".
 
 ---
 
@@ -129,6 +140,11 @@ Todas tienen RLS activa y `GRANT` para `authenticated`/`service_role`.
 - `recalc_goal_amount` / `update_goal_on_contribution` (saldo de metas).
 - `set_family_from_debt`, `set_family_from_goal`, `set_family_from_goal_member` (autocompletan `family_id`).
 - `set_updated_at`.
+- `award_badges` (trigger AFTER INSERT en `savings_contributions`: primer aporte, meta completada,
+  reto completado).
+- `use_reserve_for_debt(goal_id, debt_id, user_id, amount)` (uso del Fondo de Reserva: retiro +
+  abono en una sola transacción, solo admin).
+- `close_expired_challenges` (job diario de pg_cron que cierra retos vencidos y otorga insignias).
 
 **Storage:** bucket privado `comprobantes` para facturas y comprobantes de pago/aporte.
 
