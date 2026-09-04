@@ -773,6 +773,15 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
             <b className="text-foreground">{formatCOP(responsable.pending)}</b></>
         )}
       </div>
+      <OcrScan
+        title="Leer comprobante del abono"
+        hint="Toma o sube la foto de la transferencia: se adjunta y se llenan el monto y la fecha."
+        onFile={(f) => setFile(f)}
+        onResult={(d) => {
+          if (d.amount) setAmount(String(d.amount));
+          if (d.date) setFecha(d.date);
+        }}
+      />
       <div>
         <Label>Monto</Label>
         <Input name="amount" type="number" step="0.01" min="1" required value={amount} onChange={(e) => setAmount(e.target.value)} />
