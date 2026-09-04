@@ -234,6 +234,8 @@ function EditPaymentForm({ payment, profiles, userId, onDone }: any) {
   const [target, setTarget] = useState<string>(payment.user_id);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [amount, setAmount] = useState<string>(String(payment.amount ?? ""));
+  const [fecha, setFecha] = useState<string>(payment.payment_date ?? new Date().toISOString().slice(0, 10));
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
