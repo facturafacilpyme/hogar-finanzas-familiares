@@ -8,6 +8,11 @@ import { Download } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { exportExcel, exportPDF, exportCSV } from "@/lib/exporters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { construirPlan, type Metodo, type Plan } from "@/lib/strategy";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend, LineChart, Line,
