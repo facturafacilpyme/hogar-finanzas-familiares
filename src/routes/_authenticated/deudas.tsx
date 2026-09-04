@@ -705,6 +705,7 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
   const [file, setFile] = useState<File | null>(null);
   const [target, setTarget] = useState<string>(userId);
   const [amount, setAmount] = useState<string>("");
+  const [fecha, setFecha] = useState<string>(new Date().toISOString().slice(0, 10));
 
   const saldaDeuda = Number(amount || 0) >= remaining - 0.5 && Number(amount || 0) > 0;
   const responsable = breakdown.find((m: any) => m.user_id === target);
