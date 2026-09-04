@@ -787,12 +787,13 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
         </Select>
         <p className="mt-1 text-xs text-muted-foreground">El monto se descuenta de lo asignado a esta persona.</p>
       </div>
-      <div><Label>Fecha</Label><Input name="payment_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
+      <div><Label>Fecha</Label><Input name="payment_date" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required /></div>
       <div>
         <Label className="flex items-center gap-2">
           <Upload className="h-4 w-4" /> Comprobante del abono (opcional)
         </Label>
         <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        {file && <p className="mt-1 text-xs text-muted-foreground">Adjunto: {file.name}</p>}
         {saldaDeuda && (
           <p className="mt-1 text-xs text-warning-foreground">
             Este abono salda la deuda: a continuación deberás adjuntar el <b>comprobante del pago total de la factura</b>
