@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { HandCoins, Search, Pencil, Trash2 } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { ProofLink } from "@/components/ProofLink";
+import { OcrScan } from "@/components/OcrScan";
 import { uploadProof } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
