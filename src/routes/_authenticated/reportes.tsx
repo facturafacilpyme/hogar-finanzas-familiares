@@ -302,7 +302,13 @@ function Reportes() {
             <Legend wrapperStyle={{ fontSize: 11 }} />
           </PieChart>
         </ChartCard>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="estrategia" className="mt-4">
+          <EstrategiaTab debts={data.debts} pays={data.pays} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
