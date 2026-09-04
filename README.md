@@ -140,6 +140,11 @@ Todas tienen RLS activa y `GRANT` para `authenticated`/`service_role`.
 - `recalc_goal_amount` / `update_goal_on_contribution` (saldo de metas).
 - `set_family_from_debt`, `set_family_from_goal`, `set_family_from_goal_member` (autocompletan `family_id`).
 - `set_updated_at`.
+- `award_badges` (trigger AFTER INSERT en `savings_contributions`: primer aporte, meta completada,
+  reto completado).
+- `use_reserve_for_debt(goal_id, debt_id, user_id, amount)` (uso del Fondo de Reserva: retiro +
+  abono en una sola transacción, solo admin).
+- `close_expired_challenges` (job diario de pg_cron que cierra retos vencidos y otorga insignias).
 
 **Storage:** bucket privado `comprobantes` para facturas y comprobantes de pago/aporte.
 
