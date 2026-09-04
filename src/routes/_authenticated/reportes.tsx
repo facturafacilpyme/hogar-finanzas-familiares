@@ -235,7 +235,14 @@ function Reportes() {
         <Kpi label="Metas" value={formatCOP(totales.metas)} />
       </div>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <Tabs defaultValue="graficas">
+        <TabsList>
+          <TabsTrigger value="graficas">Gráficas</TabsTrigger>
+          <TabsTrigger value="estrategia">Estrategia</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="graficas" className="mt-4">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         <ChartCard title="Gastos por categoría" empty={gastosPorCat.length === 0}>
           <PieChart>
             <Pie data={gastosPorCat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%">
