@@ -8,6 +8,11 @@ import { Download } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { exportExcel, exportPDF, exportCSV } from "@/lib/exporters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { construirPlan, type Metodo, type Plan } from "@/lib/strategy";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -230,7 +235,14 @@ function Reportes() {
         <Kpi label="Metas" value={formatCOP(totales.metas)} />
       </div>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <Tabs defaultValue="graficas">
+        <TabsList>
+          <TabsTrigger value="graficas">Gráficas</TabsTrigger>
+          <TabsTrigger value="estrategia">Estrategia</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="graficas" className="mt-4">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         <ChartCard title="Gastos por categoría" empty={gastosPorCat.length === 0}>
           <PieChart>
             <Pie data={gastosPorCat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%">
@@ -297,7 +309,13 @@ function Reportes() {
             <Legend wrapperStyle={{ fontSize: 11 }} />
           </PieChart>
         </ChartCard>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="estrategia" className="mt-4">
+          <EstrategiaTab debts={data.debts} pays={data.pays} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -325,6 +343,130 @@ function ChartCard({ title, empty, children }: { title: string; empty: boolean; 
             <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
           )}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+function EstrategiaTab({ debts, pays }: { debts: any[]; pays: any[] }) {
+  const [presupuesto, setPresupuesto] = useState("");
+
+  const pagosPorDeuda = useMemo(() => {
+    const m: Record<string, number> = {};
+    pays.forEach((p: any) => { m[p.debt_id] = (m[p.debt_id] ?? 0) + Number(p.amount); });
+    return m;
+  }, [pays]);
+
+  const activas = useMemo(() => debts.filter((d: any) => d.status !== "pagada"), [debts]);
+
+  const planes = useMemo(() => {
+    const monto = Number(presupuesto || 0);
+    return (["avalancha", "bola_nieve"] as Metodo[]).map((m) =>
+      construirPlan(activas, pagosPorDeuda, m, monto),
+    );
+  }, [activas, pagosPorDeuda, presupuesto]);
+
+  const [avalancha, bolaNieve] = planes;
+  const ahorro = Math.max(0, bolaNieve.interesTotal - avalancha.interesTotal);
+
+  if (activas.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-10 text-center text-muted-foreground">
+          No hay deudas activas para construir un plan de desendeudamiento.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="min-w-0 space-y-4">
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Cuánto puedes destinar cada mes</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <Label className="text-xs">Presupuesto mensual para deudas (opcional)</Label>
+          <Input
+            type="number"
+            min="0"
+            step="1000"
+            inputMode="numeric"
+            placeholder="Déjalo vacío para una estimación automática"
+            value={presupuesto}
+            onChange={(e) => setPresupuesto(e.target.value)}
+            className="max-w-xs"
+          />
+          <p className="text-xs text-muted-foreground">
+            Con este valor se calcula la cuota sugerida y los meses estimados de cada plan.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Saldo pendiente</div>
+            <div className="mt-1 text-lg font-bold">{formatCOP(avalancha.saldoTotal)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Deudas activas</div>
+            <div className="mt-1 text-lg font-bold">{avalancha.pasos.length}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Ahorro estimado con Avalancha</div>
+            <div className="mt-1 text-lg font-bold text-success">{formatCOP(ahorro)}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+        <PlanCard title="Método Avalancha" plan={avalancha} recomendado />
+        <PlanCard title="Método Bola de Nieve" plan={bolaNieve} />
+      </div>
+    </div>
+  );
+}
+
+function PlanCard({ title, plan, recomendado }: { title: string; plan: Plan; recomendado?: boolean }) {
+  return (
+    <Card className="min-w-0">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+          {title}
+          {recomendado && <Badge variant="secondary" className="font-normal">Menor costo en intereses</Badge>}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">{plan.resumen}</p>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg bg-muted/50 p-2">
+            Intereses estimados: <b className="text-foreground">{formatCOP(plan.interesTotal)}</b>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-2">
+            Tiempo estimado: <b className="text-foreground">{plan.mesesTotales ? `${plan.mesesTotales} meses` : "—"}</b>
+          </div>
+        </div>
+        <ol className="space-y-2">
+          {plan.pasos.map((p) => (
+            <li key={p.id} className="rounded-lg border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="break-words text-sm font-medium">
+                    {p.orden}. {p.name}
+                    {p.entity ? <span className="text-muted-foreground"> · {p.entity}</span> : null}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Saldo {formatCOP(p.saldo)} · tasa {p.tasa}%
+                    {p.due_date ? ` · vence ${formatDate(p.due_date)}` : ""}
+                  </div>
+                </div>
+                <div className="text-right text-xs">
+                  <div className="font-semibold">{formatCOP(p.cuotaSugerida)}/mes</div>
+                  <div className="text-muted-foreground">{p.mesesEstimados ? `${p.mesesEstimados} meses` : "—"}</div>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{p.motivo}</p>
+            </li>
+          ))}
+        </ol>
       </CardContent>
     </Card>
   );

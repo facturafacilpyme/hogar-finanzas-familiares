@@ -14,6 +14,7 @@ import { formatCOP, formatDate } from "@/lib/currency";
 import { debtStatus, memberBreakdown, STATUS_META, sum } from "@/lib/debts";
 import { uploadProof } from "@/lib/storage";
 import { ProofLink } from "@/components/ProofLink";
+import { OcrScan } from "@/components/OcrScan";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
@@ -433,7 +434,14 @@ function SettlementProofForm({ debt, userId, familyId, profiles, enMora, onDone 
       <p className="text-sm text-muted-foreground">
         Adjunta la evidencia del pago total de la factura de <b>{debt.name}</b>. Quedará disponible en el historial.
       </p>
+      <OcrScan
+        title="Leer comprobante del pago total"
+        hint="Toma o sube la foto del comprobante: se adjunta automáticamente y se leen sus datos."
+        onFile={(f) => setFile(f)}
+        onResult={() => {}}
+      />
       <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      {file && <p className="text-xs text-muted-foreground">Adjunto: {file.name}</p>}
 
       <div className="space-y-2 rounded-lg border p-3">
         <Label className="text-sm">
@@ -698,6 +706,7 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
   const [file, setFile] = useState<File | null>(null);
   const [target, setTarget] = useState<string>(userId);
   const [amount, setAmount] = useState<string>("");
+  const [fecha, setFecha] = useState<string>(new Date().toISOString().slice(0, 10));
 
   const saldaDeuda = Number(amount || 0) >= remaining - 0.5 && Number(amount || 0) > 0;
   const responsable = breakdown.find((m: any) => m.user_id === target);
@@ -766,6 +775,15 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
             <b className="text-foreground">{formatCOP(responsable.pending)}</b></>
         )}
       </div>
+      <OcrScan
+        title="Leer comprobante del abono"
+        hint="Toma o sube la foto de la transferencia: se adjunta y se llenan el monto y la fecha."
+        onFile={(f) => setFile(f)}
+        onResult={(d) => {
+          if (d.amount) setAmount(String(d.amount));
+          if (d.date) setFecha(d.date);
+        }}
+      />
       <div>
         <Label>Monto</Label>
         <Input name="amount" type="number" step="0.01" min="1" required value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -780,12 +798,13 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
         </Select>
         <p className="mt-1 text-xs text-muted-foreground">El monto se descuenta de lo asignado a esta persona.</p>
       </div>
-      <div><Label>Fecha</Label><Input name="payment_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
+      <div><Label>Fecha</Label><Input name="payment_date" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required /></div>
       <div>
         <Label className="flex items-center gap-2">
           <Upload className="h-4 w-4" /> Comprobante del abono (opcional)
         </Label>
         <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        {file && <p className="mt-1 text-xs text-muted-foreground">Adjunto: {file.name}</p>}
         {saldaDeuda && (
           <p className="mt-1 text-xs text-warning-foreground">
             Este abono salda la deuda: a continuación deberás adjuntar el <b>comprobante del pago total de la factura</b>

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { HandCoins, Search, Pencil, Trash2 } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { ProofLink } from "@/components/ProofLink";
+import { OcrScan } from "@/components/OcrScan";
 import { uploadProof } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -234,6 +235,8 @@ function EditPaymentForm({ payment, profiles, userId, onDone }: any) {
   const [target, setTarget] = useState<string>(payment.user_id);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [amount, setAmount] = useState<string>(String(payment.amount ?? ""));
+  const [fecha, setFecha] = useState<string>(payment.payment_date ?? new Date().toISOString().slice(0, 10));
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -264,7 +267,19 @@ function EditPaymentForm({ payment, profiles, userId, onDone }: any) {
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <div><Label>Monto</Label><Input name="amount" type="number" step="0.01" min="1" required defaultValue={payment.amount} /></div>
+      <OcrScan
+        title="Leer comprobante del abono"
+        hint="Toma o sube la foto de la transferencia: se adjunta y se llenan el monto y la fecha."
+        onFile={(f) => setFile(f)}
+        onResult={(d) => {
+          if (d.amount) setAmount(String(d.amount));
+          if (d.date) setFecha(d.date);
+        }}
+      />
+      <div>
+        <Label>Monto</Label>
+        <Input name="amount" type="number" step="0.01" min="1" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </div>
       <div>
         <Label>Abono a nombre de</Label>
         <Select value={target} onValueChange={setTarget}>
@@ -274,11 +289,12 @@ function EditPaymentForm({ payment, profiles, userId, onDone }: any) {
           </SelectContent>
         </Select>
       </div>
-      <div><Label>Fecha</Label><Input name="payment_date" type="date" required defaultValue={payment.payment_date} /></div>
+      <div><Label>Fecha</Label><Input name="payment_date" type="date" required value={fecha} onChange={(e) => setFecha(e.target.value)} /></div>
       <div><Label>Notas</Label><Textarea name="notes" defaultValue={payment.notes ?? ""} /></div>
       <div>
         <Label>Reemplazar comprobante (opcional)</Label>
         <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        {file && <p className="mt-1 text-xs text-muted-foreground">Adjunto: {file.name}</p>}
         {payment.proof_url && <div className="mt-2"><ProofLink path={payment.proof_url} label="Ver actual" /></div>}
       </div>
       <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Guardando…" : "Guardar cambios"}</Button></DialogFooter>
