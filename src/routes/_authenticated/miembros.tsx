@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDate } from "@/lib/currency";
+import { formatCOP, formatDate } from "@/lib/currency";
 import { useServerFn } from "@tanstack/react-start";
 import { purgeFamilyMember } from "@/lib/admin.functions";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -33,6 +33,7 @@ function Miembros() {
   const [invName, setInvName] = useState("");
   const [invEmail, setInvEmail] = useState("");
   const [phones, setPhones] = useState<Record<string, string>>({});
+  const [incomes, setIncomes] = useState<Record<string, string>>({});
   const purge = useServerFn(purgeFamilyMember);
   const confirmar = useConfirm();
 
@@ -56,6 +57,9 @@ function Miembros() {
     const ph: Record<string, string> = {};
     (profs ?? []).forEach((p: any) => { ph[p.id] = p.phone ?? ""; });
     setPhones(ph);
+    const inc: Record<string, string> = {};
+    (m ?? []).forEach((x: any) => { inc[x.user_id] = String(Number(x.monthly_income ?? 0)); });
+    setIncomes(inc);
     setInvites(inv ?? []);
   }
   useEffect(() => { load(); }, [familyId]);
@@ -69,6 +73,15 @@ function Miembros() {
     toast.success("WhatsApp actualizado");
     load();
     refresh();
+  }
+
+  async function saveIncome(memberId: string, userId: string) {
+    const valor = Number(incomes[userId] ?? 0);
+    if (!Number.isFinite(valor) || valor < 0) return toast.error("Escribe un ingreso válido");
+    const { error } = await supabase.from("family_members").update({ monthly_income: valor }).eq("id", memberId);
+    if (error) return toast.error(error.message);
+    toast.success("Ingreso mensual actualizado");
+    load();
   }
 
   async function changeRole(memberId: string, newRole: string) {
@@ -281,6 +294,24 @@ function Miembros() {
                   label="Saludar"
                   message={`Hola ${m.profiles?.name ?? ""} 👋 Te escribo desde HogarFin (${familyName ?? "nuestra familia"}). Aquí llevamos juntos las deudas y las metas de ahorro del hogar.`}
                 />
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[180px] flex-1">
+                  <Label className="text-xs">Ingreso mensual</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={incomes[m.user_id] ?? ""}
+                    onChange={(e) => setIncomes((s) => ({ ...s, [m.user_id]: e.target.value }))}
+                    placeholder="0"
+                    inputMode="numeric"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatCOP(Number(incomes[m.user_id] || 0))} · se usa para repartir deudas por ingresos.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => saveIncome(m.id, m.user_id)}>Guardar</Button>
               </div>
             </CardContent>
           </Card>
