@@ -56,7 +56,7 @@ function Deudas() {
     const [{ data: d }, { data: m }, { data: p }, { data: pay }] = await Promise.all([
       supabase.from("debts").select("*").eq("family_id", familyId).order("created_at", { ascending: false }),
       supabase.from("debt_members").select("*").eq("family_id", familyId),
-      supabase.from("family_members").select("user_id").eq("family_id", familyId),
+      supabase.from("family_members").select("user_id, monthly_income").eq("family_id", familyId),
       supabase.from("payments").select("*").eq("family_id", familyId),
     ]);
     setDebts(d ?? []);
@@ -65,7 +65,10 @@ function Deudas() {
     const { data: profs } = ids.length
       ? await supabase.from("profiles").select("id, name, email, phone").in("id", ids)
       : { data: [] as any[] };
-    setProfiles(profs ?? []);
+    setProfiles((profs ?? []).map((x: any) => ({
+      ...x,
+      monthly_income: Number((p ?? []).find((fm: any) => fm.user_id === x.id)?.monthly_income ?? 0),
+    })));
     setPayments(pay ?? []);
   }, [familyId]);
 
