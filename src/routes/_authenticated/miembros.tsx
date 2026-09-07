@@ -33,6 +33,7 @@ function Miembros() {
   const [invName, setInvName] = useState("");
   const [invEmail, setInvEmail] = useState("");
   const [phones, setPhones] = useState<Record<string, string>>({});
+  const [incomes, setIncomes] = useState<Record<string, string>>({});
   const purge = useServerFn(purgeFamilyMember);
   const confirmar = useConfirm();
 
@@ -56,6 +57,9 @@ function Miembros() {
     const ph: Record<string, string> = {};
     (profs ?? []).forEach((p: any) => { ph[p.id] = p.phone ?? ""; });
     setPhones(ph);
+    const inc: Record<string, string> = {};
+    (m ?? []).forEach((x: any) => { inc[x.user_id] = String(Number(x.monthly_income ?? 0)); });
+    setIncomes(inc);
     setInvites(inv ?? []);
   }
   useEffect(() => { load(); }, [familyId]);
