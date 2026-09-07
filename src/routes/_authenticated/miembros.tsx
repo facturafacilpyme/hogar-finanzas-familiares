@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDate } from "@/lib/currency";
+import { formatCOP, formatDate } from "@/lib/currency";
 import { useServerFn } from "@tanstack/react-start";
 import { purgeFamilyMember } from "@/lib/admin.functions";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -294,6 +294,24 @@ function Miembros() {
                   label="Saludar"
                   message={`Hola ${m.profiles?.name ?? ""} 👋 Te escribo desde HogarFin (${familyName ?? "nuestra familia"}). Aquí llevamos juntos las deudas y las metas de ahorro del hogar.`}
                 />
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[180px] flex-1">
+                  <Label className="text-xs">Ingreso mensual</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={incomes[m.user_id] ?? ""}
+                    onChange={(e) => setIncomes((s) => ({ ...s, [m.user_id]: e.target.value }))}
+                    placeholder="0"
+                    inputMode="numeric"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatCOP(Number(incomes[m.user_id] || 0))} · se usa para repartir deudas por ingresos.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => saveIncome(m.id, m.user_id)}>Guardar</Button>
               </div>
             </CardContent>
           </Card>
