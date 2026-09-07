@@ -502,6 +502,37 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
   });
   const [loading, setLoading] = useState(false);
 
+  /** Reparte la deuda entre los responsables en proporción a su ingreso mensual declarado. */
+  function repartirPorIngresos() {
+    const totalN = Number(total);
+    if (split === "fijo" && !(totalN > 0)) {
+      return toast.error("Escribe primero el valor total de la deuda");
+    }
+    const marcados = (profiles as any[]).filter((p) => Number(assign[p.id] || 0) > 0);
+    const base = (marcados.length ? marcados : (profiles as any[])).filter(
+      (p) => Number(p.monthly_income || 0) > 0,
+    );
+    if (base.length === 0) {
+      return toast.error("Nadie tiene ingreso mensual declarado. Regístralo en “Mi familia”.");
+    }
+    const sumaIngresos = base.reduce((s, p) => s + Number(p.monthly_income || 0), 0);
+    const objetivo = split === "porcentaje" ? 100 : totalN;
+    const nuevos: Record<string, string> = {};
+    let acumulado = 0;
+    base.forEach((p, i) => {
+      let valor: number;
+      if (i === base.length - 1) {
+        valor = objetivo - acumulado;
+      } else {
+        valor = Math.round(((Number(p.monthly_income) / sumaIngresos) * objetivo + Number.EPSILON) * 100) / 100;
+        acumulado += valor;
+      }
+      nuevos[p.id] = String(Math.round((valor + Number.EPSILON) * 100) / 100);
+    });
+    setAssign(nuevos);
+    toast.success(`Reparto calculado entre ${base.length} ${base.length === 1 ? "persona" : "personas"}`);
+  }
+
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
