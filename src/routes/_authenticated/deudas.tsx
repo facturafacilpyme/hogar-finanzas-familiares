@@ -666,6 +666,14 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
             </SelectContent>
           </Select>
         </div>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={repartirPorIngresos}>
+            Calcular % por ingresos
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Reparte {split === "porcentaje" ? "el porcentaje" : "el valor"} según el ingreso mensual de cada quien.
+          </span>
+        </div>
         <div className="space-y-2">
           {profiles.map((p: any) => (
             <div key={p.id} className="flex items-center gap-2">
