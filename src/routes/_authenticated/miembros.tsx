@@ -75,6 +75,15 @@ function Miembros() {
     refresh();
   }
 
+  async function saveIncome(memberId: string, userId: string) {
+    const valor = Number(incomes[userId] ?? 0);
+    if (!Number.isFinite(valor) || valor < 0) return toast.error("Escribe un ingreso válido");
+    const { error } = await supabase.from("family_members").update({ monthly_income: valor }).eq("id", memberId);
+    if (error) return toast.error(error.message);
+    toast.success("Ingreso mensual actualizado");
+    load();
+  }
+
   async function changeRole(memberId: string, newRole: string) {
     const { error } = await supabase.from("family_members").update({ role: newRole as any }).eq("id", memberId);
     if (error) return toast.error(error.message);
