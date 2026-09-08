@@ -46,7 +46,8 @@ function Deudas() {
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
-  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [filterStatus, setFilterStatus] = useState<string>("pendientes");
+  const [mesRef, setMesRef] = useState<Date | null>(null);
   const [orden, setOrden] = useState<string>("fecha");
   const [openNew, setOpenNew] = useState(false);
 
