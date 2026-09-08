@@ -24,6 +24,8 @@ import { daysUntil } from "@/lib/currency";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { queuedWrite } from "@/lib/syncQueue";
 
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
 export const Route = createFileRoute("/_authenticated/deudas")({
   validateSearch: (search: Record<string, unknown>) => ({
     debtId: typeof search.debtId === "string" ? search.debtId : undefined,
