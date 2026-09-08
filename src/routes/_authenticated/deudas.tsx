@@ -139,6 +139,7 @@ function Deudas() {
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="min-w-0 flex-1 sm:w-40 sm:flex-none"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="pendientes">Pendientes (sin pagadas)</SelectItem>
               <SelectItem value="todos">Todas</SelectItem>
               <SelectItem value="activa">Activas</SelectItem>
               <SelectItem value="por_vencer">Por vencer</SelectItem>
