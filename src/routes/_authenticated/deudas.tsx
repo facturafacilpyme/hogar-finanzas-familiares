@@ -115,7 +115,18 @@ function Deudas() {
       valor: (a, b) => Number(a.debt.total_amount) - Number(b.debt.total_amount),
     };
     return [...base].sort(cmp[orden] ?? cmp.fecha);
-  }, [withStatus, filterStatus, orden]);
+  }, [withStatus, filterStatus, orden, mesRef]);
+
+  const resumen = useMemo(() => {
+    const total = filtered.reduce((s, { debt }) => s + Number(debt.total_amount ?? 0), 0);
+    const abonado = filtered.reduce(
+      (s, { debt }) => s + sum(payments.filter((p) => p.debt_id === debt.id)),
+      0,
+    );
+    return { total, abonado, pendiente: Math.max(0, total - abonado) };
+  }, [filtered, payments]);
+
+  const etiquetaMes = mesRef ? `${MESES[mesRef.getMonth()]} ${mesRef.getFullYear()}` : "Todos los meses";
 
   return (
     <div className="w-full min-w-0 space-y-4">
