@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.seed_expense_categories() FROM PUBLIC, anon, authenticated;
