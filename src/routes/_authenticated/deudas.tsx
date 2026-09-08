@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Wallet, Upload, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Wallet, Upload, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { debtStatus, memberBreakdown, STATUS_META, sum } from "@/lib/debts";
 import { uploadProof } from "@/lib/storage";
