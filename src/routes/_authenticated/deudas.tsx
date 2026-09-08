@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Wallet, Upload, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Wallet, Upload, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { debtStatus, memberBreakdown, STATUS_META, sum } from "@/lib/debts";
 import { uploadProof } from "@/lib/storage";
@@ -23,6 +23,8 @@ import { mensajeDeuda } from "@/lib/whatsapp";
 import { daysUntil } from "@/lib/currency";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { queuedWrite } from "@/lib/syncQueue";
+
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 export const Route = createFileRoute("/_authenticated/deudas")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -46,7 +48,8 @@ function Deudas() {
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
-  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [filterStatus, setFilterStatus] = useState<string>("pendientes");
+  const [mesRef, setMesRef] = useState<Date | null>(null);
   const [orden, setOrden] = useState<string>("fecha");
   const [openNew, setOpenNew] = useState(false);
 
@@ -93,10 +96,17 @@ function Deudas() {
     [debts, payments],
   );
   const filtered = useMemo(() => {
-    const base = withStatus.filter(({ status }) => {
-      if (filterStatus === "todos") return true;
-      if (filterStatus === "activa") return status === "activa" || status === "por_vencer";
-      return status === filterStatus;
+    const base = withStatus.filter(({ debt, status }) => {
+      const okEstado =
+        filterStatus === "todos" ||
+        (filterStatus === "pendientes" && status !== "pagada") ||
+        (filterStatus === "activa" && (status === "activa" || status === "por_vencer")) ||
+        status === filterStatus;
+      if (!okEstado) return false;
+      if (!mesRef) return true;
+      if (!debt.due_date) return false;
+      const [yy, mm] = String(debt.due_date).split("-").map(Number);
+      return yy === mesRef.getFullYear() && mm === mesRef.getMonth() + 1;
     });
     const cmp: Record<string, (a: any, b: any) => number> = {
       alfabetico: (a, b) => String(a.debt.name).localeCompare(String(b.debt.name), "es", { sensitivity: "base" }),
@@ -107,7 +117,18 @@ function Deudas() {
       valor: (a, b) => Number(a.debt.total_amount) - Number(b.debt.total_amount),
     };
     return [...base].sort(cmp[orden] ?? cmp.fecha);
-  }, [withStatus, filterStatus, orden]);
+  }, [withStatus, filterStatus, orden, mesRef]);
+
+  const resumen = useMemo(() => {
+    const total = filtered.reduce((s, { debt }) => s + Number(debt.total_amount ?? 0), 0);
+    const abonado = filtered.reduce(
+      (s, { debt }) => s + sum(payments.filter((p) => p.debt_id === debt.id)),
+      0,
+    );
+    return { total, abonado, pendiente: Math.max(0, total - abonado) };
+  }, [filtered, payments]);
+
+  const etiquetaMes = mesRef ? `${MESES[mesRef.getMonth()]} ${mesRef.getFullYear()}` : "Todos los meses";
 
   return (
     <div className="w-full min-w-0 space-y-4">
@@ -120,6 +141,7 @@ function Deudas() {
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="min-w-0 flex-1 sm:w-40 sm:flex-none"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="pendientes">Pendientes (sin pagadas)</SelectItem>
               <SelectItem value="todos">Todas</SelectItem>
               <SelectItem value="activa">Activas</SelectItem>
               <SelectItem value="por_vencer">Por vencer</SelectItem>
@@ -156,8 +178,48 @@ function Deudas() {
         </DialogContent>
       </Dialog>
 
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              aria-label="Mes anterior"
+              onClick={() => {
+                const base = mesRef ?? new Date();
+                setMesRef(new Date(base.getFullYear(), base.getMonth() - 1, 1));
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-32 text-center text-sm font-semibold sm:min-w-40">{etiquetaMes}</div>
+            <Button
+              size="icon"
+              variant="outline"
+              aria-label="Mes siguiente"
+              onClick={() => {
+                const base = mesRef ?? new Date();
+                setMesRef(new Date(base.getFullYear(), base.getMonth() + 1, 1));
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {mesRef && (
+              <Button size="sm" variant="ghost" onClick={() => setMesRef(null)}>Todos los meses</Button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-4 text-xs">
+            <div><span className="text-muted-foreground">Total:</span> <span className="font-semibold">{formatCOP(resumen.total)}</span></div>
+            <div><span className="text-muted-foreground">Abonado:</span> <span className="font-semibold text-success">{formatCOP(resumen.abonado)}</span></div>
+            <div><span className="text-muted-foreground">Pendiente:</span> <span className="font-semibold">{formatCOP(resumen.pendiente)}</span></div>
+          </div>
+        </CardContent>
+      </Card>
+
       {filtered.length === 0 ? (
-        <Card><CardContent className="p-10 text-center text-muted-foreground">Sin deudas con este filtro.</CardContent></Card>
+        <Card><CardContent className="p-10 text-center text-muted-foreground">
+          {mesRef ? `Sin deudas en ${etiquetaMes} con este filtro.` : "Sin deudas con este filtro."}
+        </CardContent></Card>
       ) : (
         <div className="grid gap-3">
           {filtered.map(({ debt, status }) => (
