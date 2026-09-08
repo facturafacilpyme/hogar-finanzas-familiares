@@ -29,7 +29,19 @@ export const Route = createFileRoute("/_authenticated/caja-menor")({
   component: CajaMenor,
 });
 
-const CATEGORIAS = ["mercado", "transporte", "servicios", "salud", "otros"] as const;
+export type Categoria = { id: string; name: string; slug: string; active: boolean; sort_order: number };
+
+/** Identificador estable a partir del nombre (los gastos guardan el slug). */
+function slugify(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
 
 function tonoPresupuesto(pct: number) {
   if (pct >= 90) return { bar: "bg-destructive", text: "text-destructive", label: "Excedido / crítico" };
@@ -44,20 +56,24 @@ function CajaMenor() {
   const [budgets, setBudgets] = useState<any[]>([]);
   const [openNew, setOpenNew] = useState(false);
   const [openBudget, setOpenBudget] = useState(false);
+  const [openCats, setOpenCats] = useState(false);
+  const [cats, setCats] = useState<Categoria[]>([]);
   const [filter, setFilter] = useState<string>("todos");
   const [editing, setEditing] = useState<any>(null);
   const confirmar = useConfirm();
 
   const load = useCallback(async () => {
     if (!familyId) return;
-    const [{ data: e }, { data: p }, { data: b }] = await Promise.all([
+    const [{ data: e }, { data: p }, { data: b }, { data: c }] = await Promise.all([
       supabase.from("expenses").select("*").eq("family_id", familyId).order("expense_date", { ascending: false }),
       supabase.from("profiles").select("id, name"),
       supabase.from("budgets").select("*").eq("family_id", familyId),
+      supabase.from("expense_categories").select("*").eq("family_id", familyId).order("sort_order"),
     ]);
     setExpenses(e ?? []);
     setProfiles(p ?? []);
     setBudgets(b ?? []);
+    setCats((c ?? []) as Categoria[]);
   }, [familyId]);
 
   useEffect(() => { load(); }, [load]);

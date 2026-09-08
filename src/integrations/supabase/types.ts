@@ -102,7 +102,7 @@ export type Database = {
       }
       budgets: {
         Row: {
-          category: Database["public"]["Enums"]["expense_category"]
+          category: string
           created_at: string
           family_id: string
           id: string
@@ -110,7 +110,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          category: Database["public"]["Enums"]["expense_category"]
+          category: string
           created_at?: string
           family_id: string
           id?: string
@@ -118,7 +118,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          category?: Database["public"]["Enums"]["expense_category"]
+          category?: string
           created_at?: string
           family_id?: string
           id?: string
@@ -263,10 +263,51 @@ export type Database = {
           },
         ]
       }
+      expense_categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          family_id: string
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          family_id: string
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          family_id?: string
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_categories_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
-          category: Database["public"]["Enums"]["expense_category"]
+          category: string
           created_at: string
           description: string | null
           expense_date: string
@@ -276,7 +317,7 @@ export type Database = {
         }
         Insert: {
           amount: number
-          category: Database["public"]["Enums"]["expense_category"]
+          category: string
           created_at?: string
           description?: string | null
           expense_date?: string
@@ -286,7 +327,7 @@ export type Database = {
         }
         Update: {
           amount?: number
-          category?: Database["public"]["Enums"]["expense_category"]
+          category?: string
           created_at?: string
           description?: string | null
           expense_date?: string
@@ -756,12 +797,6 @@ export type Database = {
       app_role: "admin" | "miembro" | "invitado" | "educativo"
       debt_status: "activa" | "pagada" | "mora"
       debt_type: "unico" | "cuotas"
-      expense_category:
-        | "mercado"
-        | "transporte"
-        | "salud"
-        | "servicios"
-        | "otros"
       notif_type:
         | "nueva_deuda"
         | "por_vencer"
@@ -900,13 +935,6 @@ export const Constants = {
       app_role: ["admin", "miembro", "invitado", "educativo"],
       debt_status: ["activa", "pagada", "mora"],
       debt_type: ["unico", "cuotas"],
-      expense_category: [
-        "mercado",
-        "transporte",
-        "salud",
-        "servicios",
-        "otros",
-      ],
       notif_type: [
         "nueva_deuda",
         "por_vencer",
