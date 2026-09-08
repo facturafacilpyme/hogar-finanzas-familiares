@@ -29,7 +29,19 @@ export const Route = createFileRoute("/_authenticated/caja-menor")({
   component: CajaMenor,
 });
 
-const CATEGORIAS = ["mercado", "transporte", "servicios", "salud", "otros"] as const;
+export type Categoria = { id: string; name: string; slug: string; active: boolean; sort_order: number };
+
+/** Identificador estable a partir del nombre (los gastos guardan el slug). */
+function slugify(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
 
 function tonoPresupuesto(pct: number) {
   if (pct >= 90) return { bar: "bg-destructive", text: "text-destructive", label: "Excedido / crítico" };
