@@ -176,8 +176,48 @@ function Deudas() {
         </DialogContent>
       </Dialog>
 
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              aria-label="Mes anterior"
+              onClick={() => {
+                const base = mesRef ?? new Date();
+                setMesRef(new Date(base.getFullYear(), base.getMonth() - 1, 1));
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-32 text-center text-sm font-semibold sm:min-w-40">{etiquetaMes}</div>
+            <Button
+              size="icon"
+              variant="outline"
+              aria-label="Mes siguiente"
+              onClick={() => {
+                const base = mesRef ?? new Date();
+                setMesRef(new Date(base.getFullYear(), base.getMonth() + 1, 1));
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {mesRef && (
+              <Button size="sm" variant="ghost" onClick={() => setMesRef(null)}>Todos los meses</Button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-4 text-xs">
+            <div><span className="text-muted-foreground">Total:</span> <span className="font-semibold">{formatCOP(resumen.total)}</span></div>
+            <div><span className="text-muted-foreground">Abonado:</span> <span className="font-semibold text-success">{formatCOP(resumen.abonado)}</span></div>
+            <div><span className="text-muted-foreground">Pendiente:</span> <span className="font-semibold">{formatCOP(resumen.pendiente)}</span></div>
+          </div>
+        </CardContent>
+      </Card>
+
       {filtered.length === 0 ? (
-        <Card><CardContent className="p-10 text-center text-muted-foreground">Sin deudas con este filtro.</CardContent></Card>
+        <Card><CardContent className="p-10 text-center text-muted-foreground">
+          {mesRef ? `Sin deudas en ${etiquetaMes} con este filtro.` : "Sin deudas con este filtro."}
+        </CardContent></Card>
       ) : (
         <div className="grid gap-3">
           {filtered.map(({ debt, status }) => (
