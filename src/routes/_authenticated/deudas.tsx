@@ -94,10 +94,17 @@ function Deudas() {
     [debts, payments],
   );
   const filtered = useMemo(() => {
-    const base = withStatus.filter(({ status }) => {
-      if (filterStatus === "todos") return true;
-      if (filterStatus === "activa") return status === "activa" || status === "por_vencer";
-      return status === filterStatus;
+    const base = withStatus.filter(({ debt, status }) => {
+      const okEstado =
+        filterStatus === "todos" ||
+        (filterStatus === "pendientes" && status !== "pagada") ||
+        (filterStatus === "activa" && (status === "activa" || status === "por_vencer")) ||
+        status === filterStatus;
+      if (!okEstado) return false;
+      if (!mesRef) return true;
+      if (!debt.due_date) return false;
+      const [yy, mm] = String(debt.due_date).split("-").map(Number);
+      return yy === mesRef.getFullYear() && mm === mesRef.getMonth() + 1;
     });
     const cmp: Record<string, (a: any, b: any) => number> = {
       alfabetico: (a, b) => String(a.debt.name).localeCompare(String(b.debt.name), "es", { sensitivity: "base" }),
