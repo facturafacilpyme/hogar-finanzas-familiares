@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Receipt, Pencil, Trash2, PiggyBank, AlertTriangle } from "lucide-react";
+import { Plus, Receipt, Pencil, Trash2, PiggyBank, AlertTriangle, Tags, EyeOff, Eye } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -94,8 +94,15 @@ function CajaMenor() {
 
   const totalMes = useMemo(() => [...gastoMesPorCat.values()].reduce((s, v) => s + v, 0), [gastoMesPorCat]);
   const limiteOf = (cat: string) => Number(budgets.find((b) => b.category === cat)?.monthly_limit ?? 0);
-  const totalLimite = CATEGORIAS.reduce((s, c) => s + limiteOf(c), 0);
-  const conPresupuesto = CATEGORIAS.filter((c) => limiteOf(c) > 0);
+  const allSlugs = useMemo(() => {
+    const s = new Set(cats.map((c) => c.slug));
+    budgets.forEach((b) => s.add(b.category));
+    return [...s];
+  }, [cats, budgets]);
+  const totalLimite = allSlugs.reduce((s, c) => s + limiteOf(c), 0);
+  const conPresupuesto = allSlugs.filter((c) => limiteOf(c) > 0);
+  const nameOf = (slug: string) => cats.find((c) => c.slug === slug)?.name ?? slug;
+  const activeCats = cats.filter((c) => c.active);
   const enAlerta = conPresupuesto.filter((c) => (gastoMesPorCat.get(c) ?? 0) / limiteOf(c) >= 0.9);
 
   const canWrite = canWriteFinance(role);
@@ -123,6 +130,11 @@ function CajaMenor() {
           <p className="text-sm text-muted-foreground">Gastos cotidianos y presupuestos del hogar.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canWrite && (
+            <Button variant="outline" onClick={() => setOpenCats(true)}>
+              <Tags className="mr-1 h-4 w-4" /> Categorías
+            </Button>
+          )}
           {isAdmin && (
             <Button variant="outline" onClick={() => setOpenBudget(true)}>
               <PiggyBank className="mr-1 h-4 w-4" /> Presupuestos
@@ -160,7 +172,7 @@ function CajaMenor() {
               <div className="min-w-0">
                 <div className="font-semibold text-destructive">Presupuesto al límite</div>
                 <div className="break-words text-xs text-muted-foreground">
-                  {enAlerta.map((c) => `${c} (${((gastoMesPorCat.get(c) ?? 0) / limiteOf(c) * 100).toFixed(0)}%)`).join(" · ")}
+                  {enAlerta.map((c) => `${nameOf(c)} (${((gastoMesPorCat.get(c) ?? 0) / limiteOf(c) * 100).toFixed(0)}%)`).join(" · ")}
                 </div>
               </div>
             </CardContent>
@@ -188,7 +200,7 @@ function CajaMenor() {
               return (
                 <div key={c}>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <span className="font-medium capitalize">{c}</span>
+                    <span className="font-medium">{nameOf(c)}</span>
                     <span className="break-words text-xs text-muted-foreground">
                       {formatCOP(gastado)} / {formatCOP(limite)} · <b className={t.text}>{pct.toFixed(0)}% · {t.label}</b>
                     </span>
@@ -214,6 +226,7 @@ function CajaMenor() {
           <ExpenseForm
             userId={user!.id}
             familyId={familyId!}
+            cats={activeCats}
             onDone={() => { setOpenNew(false); load(); }}
           />
         </DialogContent>
@@ -225,8 +238,16 @@ function CajaMenor() {
           <BudgetForm
             familyId={familyId!}
             budgets={budgets}
+            cats={activeCats}
             onDone={() => { setOpenBudget(false); load(); }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openCats} onOpenChange={setOpenCats}>
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
+          <DialogHeader><DialogTitle>Categorías de gasto</DialogTitle></DialogHeader>
+          <CategoriesManager familyId={familyId!} cats={cats} expenses={expenses} budgets={budgets} onChange={load} />
         </DialogContent>
       </Dialog>
 
@@ -260,7 +281,10 @@ function CajaMenor() {
                 <Select value={editing.category} onValueChange={(v) => setEditing((s: any) => ({ ...s, category: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CATEGORIAS.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                    {activeCats.map((c) => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
+                    {!activeCats.some((c) => c.slug === editing.category) && (
+                      <SelectItem value={editing.category}>{nameOf(editing.category)}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -277,7 +301,7 @@ function CajaMenor() {
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas</SelectItem>
-            {CATEGORIAS.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+            {cats.map((c) => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -293,7 +317,7 @@ function CajaMenor() {
                 return (
                   <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
                     <div className="min-w-0 flex-1 basis-[200px]">
-                      <div className="font-medium capitalize">{x.category}</div>
+                      <div className="font-medium">{nameOf(x.category)}</div>
                       <div className="break-words text-xs text-muted-foreground">
                         {x.description || "—"} · {p?.name ?? "?"} · {formatDate(x.expense_date)}
                       </div>
@@ -322,8 +346,8 @@ function CajaMenor() {
   );
 }
 
-function ExpenseForm({ userId, familyId, onDone }: { userId: string; familyId: string; onDone: () => void }) {
-  const [cat, setCat] = useState<string>("mercado");
+function ExpenseForm({ userId, familyId, cats, onDone }: { userId: string; familyId: string; cats: Categoria[]; onDone: () => void }) {
+  const [cat, setCat] = useState<string>(cats[0]?.slug ?? "otros");
   const [amount, setAmount] = useState("");
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [desc, setDesc] = useState("");
@@ -359,7 +383,7 @@ function ExpenseForm({ userId, familyId, onDone }: { userId: string; familyId: s
         onResult={(d) => {
           if (d.amount) setAmount(String(d.amount));
           if (d.date) setFecha(d.date);
-          if (d.category) setCat(d.category);
+          if (d.category && cats.some((c) => c.slug === d.category)) setCat(d.category);
           if (d.entity && !desc) setDesc(d.entity);
         }}
       />
@@ -369,7 +393,7 @@ function ExpenseForm({ userId, familyId, onDone }: { userId: string; familyId: s
         <Select value={cat} onValueChange={setCat}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            {CATEGORIAS.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+            {cats.map((c) => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -380,7 +404,8 @@ function ExpenseForm({ userId, familyId, onDone }: { userId: string; familyId: s
   );
 }
 
-function BudgetForm({ familyId, budgets, onDone }: { familyId: string; budgets: any[]; onDone: () => void }) {
+function BudgetForm({ familyId, budgets, cats, onDone }: { familyId: string; budgets: any[]; cats: Categoria[]; onDone: () => void }) {
+  const CATEGORIAS = cats.map((c) => c.slug);
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     CATEGORIAS.forEach((c) => {
@@ -400,7 +425,7 @@ function BudgetForm({ familyId, budgets, onDone }: { familyId: string; budgets: 
       if (limite > 0) {
         const { error } = existente
           ? await supabase.from("budgets").update({ monthly_limit: limite }).eq("id", existente.id)
-          : await supabase.from("budgets").insert({ family_id: familyId, category: c as any, monthly_limit: limite });
+          : await supabase.from("budgets").insert({ family_id: familyId, category: c, monthly_limit: limite });
         if (error) { setLoading(false); return toast.error(error.message); }
       } else if (existente) {
         await supabase.from("budgets").delete().eq("id", existente.id);
@@ -420,7 +445,7 @@ function BudgetForm({ familyId, budgets, onDone }: { familyId: string; budgets: 
       </p>
       {CATEGORIAS.map((c) => (
         <div key={c} className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 text-sm capitalize">{c}</span>
+          <span className="min-w-0 flex-1 text-sm">{cats.find((x) => x.slug === c)?.name ?? c}</span>
           <Input
             type="number"
             min="0"
@@ -439,5 +464,112 @@ function BudgetForm({ familyId, budgets, onDone }: { familyId: string; budgets: 
       </div>
       <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Guardando…" : "Guardar presupuestos"}</Button></DialogFooter>
     </form>
+  );
+}
+
+function CategoriesManager({ familyId, cats, expenses, budgets, onChange }: {
+  familyId: string; cats: Categoria[]; expenses: any[]; budgets: any[]; onChange: () => void;
+}) {
+  const [nuevo, setNuevo] = useState("");
+  const [names, setNames] = useState<Record<string, string>>({});
+  const confirmar = useConfirm();
+
+  useEffect(() => {
+    setNames(Object.fromEntries(cats.map((c) => [c.id, c.name])));
+  }, [cats]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    const name = nuevo.trim();
+    if (!name) return;
+    let slug = slugify(name) || "categoria";
+    if (cats.some((c) => c.slug === slug)) {
+      const existente = cats.find((c) => c.slug === slug)!;
+      if (!existente.active) {
+        const { error } = await supabase.from("expense_categories").update({ active: true, name }).eq("id", existente.id);
+        if (error) return toast.error(error.message);
+        setNuevo(""); toast.success("Categoría reactivada"); return onChange();
+      }
+      return toast.error("Ya existe una categoría con ese nombre");
+    }
+    const { error } = await supabase.from("expense_categories").insert({
+      family_id: familyId, name, slug, sort_order: cats.length + 1,
+    });
+    if (error) return toast.error(error.message);
+    setNuevo("");
+    toast.success("Categoría creada");
+    onChange();
+  }
+
+  async function rename(c: Categoria) {
+    const name = (names[c.id] ?? "").trim();
+    if (!name || name === c.name) return;
+    const { error } = await supabase.from("expense_categories").update({ name }).eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success("Nombre actualizado");
+    onChange();
+  }
+
+  async function toggle(c: Categoria) {
+    const { error } = await supabase.from("expense_categories").update({ active: !c.active }).eq("id", c.id);
+    if (error) return toast.error(error.message);
+    onChange();
+  }
+
+  async function remove(c: Categoria) {
+    const enUso = expenses.some((x) => x.category === c.slug) || budgets.some((b) => b.category === c.slug);
+    if (enUso) {
+      const ok = await confirmar({
+        title: "Categoría en uso",
+        description: "Tiene gastos o presupuesto registrados, así que no se puede borrar sin dañar el historial. ¿Quieres desactivarla para que no aparezca en gastos nuevos?",
+        confirmText: "Desactivar",
+      });
+      if (ok && c.active) toggle(c);
+      return;
+    }
+    const ok = await confirmar({
+      title: "Eliminar categoría",
+      description: `Se eliminará «${c.name}».`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("expense_categories").delete().eq("id", c.id);
+    if (error) return toast.error(error.message);
+    toast.success("Categoría eliminada");
+    onChange();
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Organiza los gastos a tu manera: renombra, agrega o desactiva categorías. Las desactivadas no aparecen
+        al registrar gastos nuevos, pero conservan su historial.
+      </p>
+      <ul className="space-y-2">
+        {cats.map((c) => (
+          <li key={c.id} className={`flex items-center gap-1 ${c.active ? "" : "opacity-60"}`}>
+            <Input
+              className="min-w-0 flex-1"
+              value={names[c.id] ?? ""}
+              onChange={(e) => setNames((s) => ({ ...s, [c.id]: e.target.value }))}
+              onBlur={() => rename(c)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); rename(c); } }}
+              aria-label={`Nombre de ${c.name}`}
+            />
+            <Button type="button" size="icon" variant="ghost" onClick={() => toggle(c)} aria-label={c.active ? "Desactivar" : "Activar"}>
+              {c.active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            <Button type="button" size="icon" variant="ghost" onClick={() => remove(c)} aria-label="Eliminar">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={add} className="flex gap-2">
+        <Input className="min-w-0 flex-1" placeholder="Nueva categoría (ej. Arriendo)" value={nuevo} onChange={(e) => setNuevo(e.target.value)} maxLength={40} />
+        <Button type="submit"><Plus className="mr-1 h-4 w-4" /> Agregar</Button>
+      </form>
+    </div>
   );
 }
