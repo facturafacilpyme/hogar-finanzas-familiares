@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePager, LoadMore } from "@/components/Pager";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/abonos")({
 function Abonos() {
   const { familyId, user, role } = useAuth();
   const { debtId } = Route.useSearch();
+  const pager = usePager(20);
   const [payments, setPayments] = useState<any[]>([]);
   const [debts, setDebts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -180,7 +182,7 @@ function Abonos() {
         <Card>
           <CardContent className="p-0">
             <ul className="divide-y">
-              {filtered.map((p) => {
+              {pager.slice("p", filtered).map((p) => {
                 const puede = isAdmin || p.created_by === user?.id || p.user_id === user?.id;
                 return (
                   <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
@@ -210,6 +212,7 @@ function Abonos() {
                 );
               })}
             </ul>
+            <LoadMore shown={pager.slice("p", filtered).length} total={filtered.length} onMore={() => pager.more("p")} />
           </CardContent>
         </Card>
       )}
