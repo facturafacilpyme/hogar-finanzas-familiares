@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePager, LoadMore } from "@/components/Pager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/ahorros")({
 function Ahorros() {
   const { user, role, familyId, familyName } = useAuth();
   const { goalId } = Route.useSearch();
+  const pager = usePager(10);
   const [goals, setGoals] = useState<any[]>([]);
   const [goalMembers, setGoalMembers] = useState<any[]>([]);
   const [contribs, setContribs] = useState<any[]>([]);
@@ -137,7 +139,7 @@ function Ahorros() {
                 </CardContent></Card>
               ) : (
                 <div className="grid gap-3 lg:grid-cols-2">
-                  {list.map((g) => (
+                  {pager.slice(t, list, list.findIndex((x) => x.id === goalId)).map((g) => (
                     <div
                       key={g.id}
                       id={`goal-${g.id}`}
@@ -162,6 +164,7 @@ function Ahorros() {
                   ))}
                 </div>
               )}
+              <LoadMore shown={pager.slice(t, list, list.findIndex((x) => x.id === goalId)).length} total={list.length} onMore={() => pager.more(t)} />
             </TabsContent>
           );
         })}
@@ -735,6 +738,7 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
   const [q, setQ] = useState("");
   const [person, setPerson] = useState("todos");
   const [goalId, setGoalId] = useState("todas");
+  const pager = usePager(20);
   const [editing, setEditing] = useState<any>(null);
   const confirmarMov = useConfirm();
 
@@ -794,7 +798,7 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
         <Card>
           <CardContent className="p-0">
             <ul className="divide-y">
-              {filtered.map((c: any) => (
+              {pager.slice("c", filtered).map((c: any) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
                   <div className="min-w-0 flex-1 basis-[200px]">
                     <div className="break-words font-medium">{goalName(c.goal_id)}</div>
@@ -822,6 +826,7 @@ function ContributionsList({ contribs, goals, nameOf, profiles, isAdmin, userId,
                 </li>
               ))}
             </ul>
+            <LoadMore shown={pager.slice("c", filtered).length} total={filtered.length} onMore={() => pager.more("c")} />
           </CardContent>
         </Card>
       )}

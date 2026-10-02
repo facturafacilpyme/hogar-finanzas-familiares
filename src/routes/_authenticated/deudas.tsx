@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePager, LoadMore } from "@/components/Pager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -44,6 +45,7 @@ export const Route = createFileRoute("/_authenticated/deudas")({
 function Deudas() {
   const { user, role, familyId, familyName } = useAuth();
   const { debtId } = Route.useSearch();
+  const pager = usePager(15);
   const [debts, setDebts] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -222,7 +224,7 @@ function Deudas() {
         </CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map(({ debt, status }) => (
+          {pager.slice("d", filtered, filtered.findIndex((x) => x.debt.id === debtId)).map(({ debt, status }) => (
             <div
               key={debt.id}
               id={`debt-${debt.id}`}
@@ -243,6 +245,7 @@ function Deudas() {
               />
             </div>
           ))}
+          <LoadMore shown={pager.slice("d", filtered, filtered.findIndex((x) => x.debt.id === debtId)).length} total={filtered.length} onMore={() => pager.more("d")} />
         </div>
 
       )}
