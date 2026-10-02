@@ -94,8 +94,15 @@ function CajaMenor() {
 
   const totalMes = useMemo(() => [...gastoMesPorCat.values()].reduce((s, v) => s + v, 0), [gastoMesPorCat]);
   const limiteOf = (cat: string) => Number(budgets.find((b) => b.category === cat)?.monthly_limit ?? 0);
-  const totalLimite = CATEGORIAS.reduce((s, c) => s + limiteOf(c), 0);
-  const conPresupuesto = CATEGORIAS.filter((c) => limiteOf(c) > 0);
+  const allSlugs = useMemo(() => {
+    const s = new Set(cats.map((c) => c.slug));
+    budgets.forEach((b) => s.add(b.category));
+    return [...s];
+  }, [cats, budgets]);
+  const totalLimite = allSlugs.reduce((s, c) => s + limiteOf(c), 0);
+  const conPresupuesto = allSlugs.filter((c) => limiteOf(c) > 0);
+  const nameOf = (slug: string) => cats.find((c) => c.slug === slug)?.name ?? slug;
+  const activeCats = cats.filter((c) => c.active);
   const enAlerta = conPresupuesto.filter((c) => (gastoMesPorCat.get(c) ?? 0) / limiteOf(c) >= 0.9);
 
   const canWrite = canWriteFinance(role);
