@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/miembros")({
   component: Miembros,
 });
 
-const ROLES = ["admin", "miembro", "invitado"] as const;
+const ROLES = ["admin", "miembro", "educativo", "invitado"] as const;
 
 function Miembros() {
   const { role, user, familyId, familyName, refresh } = useAuth();
