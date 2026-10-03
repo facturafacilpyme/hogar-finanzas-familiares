@@ -51,6 +51,9 @@ const items = [
   { title: "Historial", to: "/historial", icon: History },
 ] as const;
 
+/** Secciones ocultas para el rol educativo (menú simplificado). */
+const EDU_BLOCKED = ["/deudas", "/abonos", "/caja-menor", "/reportes"];
+
 function NavLinks({ items }: { items: readonly { title: string; to: string; icon: any }[] }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { setOpenMobile, isMobile } = useSidebar();
@@ -78,12 +81,18 @@ function AuthedLayout() {
     if (!loading && !user) nav({ to: "/auth" });
   }, [loading, user, nav]);
 
+  const pathname = useRouterState({ select: (st) => st.location.pathname });
+  const educativo = role === "educativo";
+  useEffect(() => {
+    if (educativo && EDU_BLOCKED.some((p) => pathname.startsWith(p))) nav({ to: "/panel" });
+  }, [educativo, pathname, nav]);
+
   if (loading || !user) {
     return <div className="grid min-h-screen place-items-center text-muted-foreground">Cargando…</div>;
   }
 
   const allItems = [
-    ...items,
+    ...(educativo ? items.filter((i) => !EDU_BLOCKED.includes(i.to)) : items),
     { title: "Mi familia", to: "/miembros", icon: Users },
     { title: "Mi cuenta", to: "/cuenta", icon: UserCog },
   ];
