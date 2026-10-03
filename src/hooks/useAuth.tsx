@@ -34,7 +34,9 @@ interface AuthCtx {
   refresh: () => Promise<void>;
 }
 
-const Ctx = createContext<AuthCtx | undefined>(undefined);
+// Se conserva entre recargas en caliente para que proveedor y consumidores compartan el mismo contexto.
+const g = globalThis as { __hogarfinAuthCtx?: React.Context<AuthCtx | undefined> };
+const Ctx = (g.__hogarfinAuthCtx ??= createContext<AuthCtx | undefined>(undefined));
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
