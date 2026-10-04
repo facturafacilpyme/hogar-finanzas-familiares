@@ -54,12 +54,12 @@ function downloadCSV(filename: string, rows: Record<string, any>[]) {
 function Reportes() {
   const { familyId, familyName } = useAuth();
   const [formato, setFormato] = useState<"excel" | "pdf" | "csv">("excel");
-  const [data, setData] = useState<any>({ debts: [], dm: [], pays: [], exp: [], goals: [], contrib: [], profiles: [] });
+  const [data, setData] = useState<any>({ debts: [], dm: [], pays: [], exp: [], goals: [], contrib: [], profiles: [], categories: [] });
 
   useEffect(() => {
     (async () => {
       if (!familyId) return;
-      const [{ data: debts }, { data: dm }, { data: pays }, { data: exp }, { data: goals }, { data: contrib }, { data: fm }] =
+      const [{ data: debts }, { data: dm }, { data: pays }, { data: exp }, { data: goals }, { data: contrib }, { data: fm }, { data: categories }] =
         await Promise.all([
           supabase.from("debts").select("*").eq("family_id", familyId),
           supabase.from("debt_members").select("*").eq("family_id", familyId),
@@ -68,16 +68,18 @@ function Reportes() {
           supabase.from("savings_goals").select("*").eq("family_id", familyId),
           supabase.from("savings_contributions").select("*").eq("family_id", familyId),
           supabase.from("family_members").select("user_id").eq("family_id", familyId),
+          supabase.from("expense_categories").select("slug, name").eq("family_id", familyId),
         ]);
       const ids = (fm ?? []).map((x: any) => x.user_id);
       const { data: profiles } = ids.length
         ? await supabase.from("profiles").select("id, name, email").in("id", ids)
         : { data: [] as any[] };
-      setData({ debts: debts ?? [], dm: dm ?? [], pays: pays ?? [], exp: exp ?? [], goals: goals ?? [], contrib: contrib ?? [], profiles: profiles ?? [] });
+      setData({ debts: debts ?? [], dm: dm ?? [], pays: pays ?? [], exp: exp ?? [], goals: goals ?? [], contrib: contrib ?? [], profiles: profiles ?? [], categories: categories ?? [] });
     })();
   }, [familyId]);
 
   const nameOf = (id: string) => data.profiles.find((p: any) => p.id === id)?.name ?? "?";
+  const categoryNameOf = (slug: string) => data.categories.find((category: any) => category.slug === slug)?.name ?? slug;
 
   const totales = useMemo(() => {
     const deuda = data.debts.reduce((s: number, d: any) => s + Number(d.total_amount), 0);
@@ -91,7 +93,7 @@ function Reportes() {
   const gastosPorCat = useMemo(() => {
     const m = new Map<string, number>();
     data.exp.forEach((x: any) => m.set(x.category, (m.get(x.category) ?? 0) + Number(x.amount)));
-    return [...m.entries()].map(([name, value]) => ({ name, value }));
+    return [...m.entries()].map(([slug, value]) => ({ name: categoryNameOf(slug), value }));
   }, [data]);
 
   const deudaPorMiembro = useMemo(() => {
@@ -161,7 +163,7 @@ function Reportes() {
       }));
     if (tipo === "gastos")
       return data.exp.map((e: any) => ({
-        Fecha: formatDate(e.expense_date), Categoria: e.category, Descripcion: e.description ?? "",
+        Fecha: formatDate(e.expense_date), Categoria: categoryNameOf(e.category), Descripcion: e.description ?? "",
         Persona: nameOf(e.paid_by), Monto: e.amount,
       }));
     if (tipo === "ahorros")
