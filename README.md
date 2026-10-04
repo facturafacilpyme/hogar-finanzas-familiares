@@ -12,8 +12,8 @@ y triggers/funciones SQL.
 ## 1. Multi-tenant vs global
 
 **Aislado por familia (`family_id` + RLS):**
-`debts`, `debt_members`, `payments`, `expenses`, `budgets`, `savings_goals`,
-`savings_contributions`, `savings_goal_members`, `badges`, `invitations`,
+`debts`, `debt_members`, `payments`, `expenses`, `expense_categories`, `budgets`,
+`savings_goals`, `savings_contributions`, `savings_goal_members`, `badges`, `invitations`,
 `activity_log`, `notifications` y `family_members`.
 
 **Global / por usuario:**
@@ -41,12 +41,17 @@ Enum `app_role`: `admin`, `miembro`, `invitado`, `educativo`.
 | Editar/borrar abonos | propios o cualquiera de la familia | solo los propios | No | No |
 | Registrar gastos de Caja Menor | Sí | Sí | No | No |
 | Editar/borrar gastos | cualquiera | solo los propios | No | No |
+| Gestionar categorías de gasto | Sí | Sí | No | No |
 | Definir presupuestos por categoría | Sí | No | No | No |
 | Crear metas de ahorro | Sí | Sí | No | No |
 | Editar / romper / borrar metas | Sí | No | No | No |
 | Aportar o retirar en metas (`savings_contributions`) | Sí | Sí | **Sí** | No |
 | Unirse/asignarse a una meta | Sí | Sí | **Sí** | No |
 | Renombrar familia, gestionar miembros, roles e invitaciones | Sí | No | No | No |
+
+El rol **educativo** además tiene un menú simplificado en la app: solo ve Panel, Calendario,
+Ahorros, Historial, Mi familia y Mi cuenta; las rutas de Deudas, Abonos, Caja Menor y Reportes
+redirigen al Panel si se accede directamente.
 
 Funciones SECURITY DEFINER que implementan esto:
 `is_family_member`, `is_family_admin`, `can_write_family` (admin+miembro),
@@ -65,12 +70,15 @@ Rutas protegidas bajo `src/routes/_authenticated/`:
   riesgo de mora (con nivel de riesgo, 5 días antes), balance semanal compartible por WhatsApp.
   El mensaje urgente de intereses solo lo ve el admin.
 - **Deudas** (`/deudas`) — crear/editar/eliminar deudas, tipo único o a cuotas (las cuotas generan
-  una deuda por mes), reparto por porcentaje o por valor fijo, filtros y ordenamiento
+  una deuda por mes), reparto por porcentaje, por valor fijo o **proporcional a los ingresos**
+  declarados de cada miembro (botón "Calcular % por ingresos"), filtros y ordenamiento
   (fecha, nombre, valor), estado calculado (activa / por vencer / mora / pagada), comprobante de
   factura, y **comprobante de pago total obligatorio** con plazo de 24 h al marcar como pagada.
-  El interés por mora pagado se registra como gasto en Caja Menor.
+  El interés por mora pagado se registra como gasto en Caja Menor. Vista por defecto solo con
+  deudas pendientes y **selector de mes** (‹ mes ›) con resumen de total/abonado/pendiente,
+  que sirve como historial mes a mes.
 - **Abonos** (`/abonos`) — listado de abonos con comprobante, edición y borrado según rol,
-  totales por persona.
+  totales por persona. El formulario de abono incluye **lectura OCR del comprobante**.
 - **Calendario** (`/calendario`) — vencimientos del mes con semáforo y alertas de riesgo de mora.
 - **Ahorros** (`/ahorros`) — metas con progreso, aportes y retiros con comprobante, miembros por
   meta, romper/restaurar meta (admin), **retos colectivos** (`is_challenge`, `period_start`/
@@ -79,22 +87,30 @@ Rutas protegidas bajo `src/routes/_authenticated/`:
   `UNIQUE(user_id, code, goal_id)`) y **Fondo de Reserva** (`goal_kind = 'reserva'`) con botón
   "Usar fondo" que ejecuta la función transaccional `use_reserve_for_debt` (retiro + abono en una
   sola transacción).
-- **Caja Menor** (`/caja-menor`) — gastos por categoría (`mercado`, `transporte`, `salud`,
-  `servicios`, `otros`), **presupuestos mensuales por categoría** con semáforo verde/amarillo/rojo
+- **Caja Menor** (`/caja-menor`) — gastos por **categorías personalizables por familia**
+  (crear, renombrar, activar/desactivar; cada familia arranca con mercado, transporte, salud,
+  servicios y otros), **presupuestos mensuales por categoría** con semáforo verde/amarillo/rojo
   y aviso al superar el 90 %, y **lectura OCR de recibos** (server function con Lovable AI).
-- **Reportes** (`/reportes`) — gráficas (recharts) y exportación a **Excel, PDF y CSV**.
+- **Reportes** (`/reportes`) — gráficas (recharts) con los **nombres reales de las categorías**
+  de la familia, pestaña **Estrategia de desendeudamiento** (Bola de Nieve vs. Avalancha con
+  `construirPlan()` de `src/lib/strategy.ts`: orden sugerido de pago y ahorro estimado en
+  intereses) y exportación a **Excel, PDF y CSV**.
 - **Historial** (`/historial`) — log de actividad de la familia (triggers `log_activity`).
-- **Mi familia** (`/miembros`) — renombrar familia, ver miembros, cambiar roles, generar y revocar
-  invitaciones (7 días), eliminar miembros (`purgeFamilyMember`).
+- **Mi familia** (`/miembros`) — renombrar familia, ver miembros, declarar **ingreso mensual**
+  por miembro, cambiar roles (incluido educativo), generar y revocar invitaciones (7 días),
+  eliminar miembros (`purgeFamilyMember`).
 - **Mi cuenta** (`/cuenta`) — nombre, teléfono y datos del perfil.
 
 Transversal: notificaciones en campana con realtime y **acciones rápidas de un toque**
 (`NotificationBell`: "Ver deuda", "Registrar abono", "Subir comprobante" → `/deudas?debtId`;
 "Ver abonos" → `/abonos?debtId`; "Ver meta" → `/ahorros?goalId`; marcan la notificación como leída
 individualmente y avisan sin navegar si no hay registro asociado), pop-up de recordatorios por rol
-(`ReminderPopup`), avisos por WhatsApp (`wa.me`, sin costo), cola de sincronización offline en
-IndexedDB con indicador (`SyncStatus`), diálogos de confirmación propios (sin `alert`/`confirm`),
-instalación como PWA.
+(`ReminderPopup`), avisos por WhatsApp (`wa.me`, sin costo, disponible para todos los roles),
+cola de sincronización offline en IndexedDB con indicador (`SyncStatus`), diálogos de
+confirmación propios (sin `alert`/`confirm`), **paginación incremental** en listas largas
+(`Pager`: deudas 15, abonos 20, aportes 20, metas 10 por página, con "Ver más" y scroll
+automático) e instalación como PWA (manifest + íconos; el modo offline solo aplica en la app
+publicada).
 
 El modelo **multi-familia** está cerrado: todo el dominio va aislado por `family_id` con RLS,
 alta con familia propia o por invitación, selector de familia y página "Mi familia".
@@ -107,9 +123,11 @@ alta con familia propia o por invitación, selector de familia y página "Mi fam
 - `app_role`: admin, miembro, invitado, educativo
 - `debt_status`: activa, pagada, mora
 - `debt_type`: unico, cuotas
-- `expense_category`: mercado, transporte, salud, servicios, otros
 - `notif_type`: nueva_deuda, por_vencer, en_mora, abono_registrado, meta_completada,
   pago_total_pendiente, riesgo_mora
+
+(El enum `expense_category` se eliminó: las categorías de gasto ahora son filas de
+`expense_categories` por familia y `expenses.category` / `budgets.category` son `text`.)
 
 **Tablas**
 
@@ -122,9 +140,10 @@ alta con familia propia o por invitación, selector de familia y página "Mi fam
 | `debts` | family_id, name, entity, total_amount, debt_type, total_cuotas, current_cuota, cuota_amount, interest_rate, due_date, created_date, status, notes, document_url, document_note, settlement_proof_url, settled_at, settled_by, settlement_due_at, created_by |
 | `debt_members` | debt_id, user_id, family_id, percentage, amount_assigned |
 | `payments` | debt_id, user_id, family_id, amount, payment_date, proof_url, notes, created_by |
-| `expenses` | family_id, category, amount, expense_date, description, paid_by |
-| `budgets` | family_id, category, monthly_limit |
-| `savings_goals` | family_id, name, target_amount, current_amount, due_date, is_challenge, goal_kind, period_start, period_end, broken_at, created_by |
+| `expense_categories` | family_id, name, slug, active, sort_order |
+| `expenses` | family_id, category (text), amount, expense_date, description, paid_by |
+| `budgets` | family_id, category (text), monthly_limit |
+| `savings_goals` | family_id, name, target_amount, current_amount, due_date, is_challenge, goal_kind, period_start, period_end, closed_at, broken_at, created_by |
 | `savings_goal_members` | goal_id, user_id, family_id |
 | `savings_contributions` | goal_id, user_id, family_id, amount, kind (aporte/retiro), contribution_date, proof_url, notes, created_by |
 | `badges` | family_id, user_id, code, label, goal_id |
@@ -145,6 +164,8 @@ Todas tienen RLS activa y `GRANT` para `authenticated`/`service_role`.
 - `use_reserve_for_debt(goal_id, debt_id, user_id, amount)` (uso del Fondo de Reserva: retiro +
   abono en una sola transacción, solo admin).
 - `close_expired_challenges` (job diario de pg_cron que cierra retos vencidos y otorga insignias).
+- Semilla de categorías: trigger `AFTER INSERT ON families` que crea las cinco categorías base
+  en cada familia nueva.
 
 **Storage:** bucket privado `comprobantes` para facturas y comprobantes de pago/aporte.
 
