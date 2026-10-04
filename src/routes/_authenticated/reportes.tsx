@@ -25,6 +25,8 @@ export const Route = createFileRoute("/_authenticated/reportes")({
       { name: "description", content: "Reportes financieros de la familia: deudas, abonos, gastos y ahorros exportables." },
       { property: "og:title", content: "Reportes — HogarFin" },
       { property: "og:description", content: "Reportes financieros de la familia: deudas, abonos, gastos y ahorros exportables." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Reportes,
