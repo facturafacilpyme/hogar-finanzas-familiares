@@ -18,9 +18,9 @@ insignias por trigger (`award_badges`) y Fondo de Reserva (`use_reserve_for_debt
 
 ## 2. Paginación del lado del servidor
 
-`Pager` hoy solo limita el renderizado: el cliente sigue descargando todas las filas de golpe
-(Historial con `limit(500)`). Cuando el volumen crezca, pasar a paginación real con `range()` de
-Supabase o cursores en Deudas, Abonos e Historial.
+Hecho en Historial (`range()` de 30 en 30, conteo exacto y filtro por tipo en servidor).
+Deudas y Abonos siguen descargando todo porque sus totales y estados necesitan todas las filas;
+pasarlos a servidor exige mover esos totales a una vista/RPC. Solo hacerlo si el volumen lo pide.
 
 ## 3. Verificación visual pendiente
 

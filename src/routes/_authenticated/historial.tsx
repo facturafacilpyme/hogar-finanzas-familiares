@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCOP, formatDate } from "@/lib/currency";
+import { Button } from "@/components/ui/button";
 import { ProofLink } from "@/components/ProofLink";
 import { History, Search } from "lucide-react";
 
@@ -40,24 +41,39 @@ const ACCIONES: Record<string, string> = {
   delete: "eliminó",
 };
 
+const PAGE = 30;
+
 function Historial() {
   const { familyId } = useAuth();
   const [log, setLog] = useState<any[]>([]);
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [tipo, setTipo] = useState("todos");
 
   useEffect(() => {
-    (async () => {
-      if (!familyId) return;
-      const [{ data: l }, { data: p }] = await Promise.all([
-        supabase.from("activity_log").select("*").eq("family_id", familyId).order("created_at", { ascending: false }).limit(500),
-        supabase.from("profiles").select("id, name"),
-      ]);
-      setLog(l ?? []);
-      setProfiles(p ?? []);
-    })();
-  }, [familyId]);
+    supabase.from("profiles").select("id, name").then(({ data }) => setProfiles(data ?? []));
+  }, []);
+
+  // Paginación real en el servidor: solo se descarga la página pedida.
+  async function fetchPage(from: number, reset: boolean) {
+    if (!familyId) return;
+    setLoading(true);
+    let query = supabase
+      .from("activity_log")
+      .select("*", { count: "exact" })
+      .eq("family_id", familyId)
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (tipo !== "todos") query = query.eq("entity", tipo);
+    const { data, count: c } = await query;
+    setLog((prev) => (reset ? data ?? [] : [...prev, ...(data ?? [])]));
+    setCount(c ?? 0);
+    setLoading(false);
+  }
+
+  useEffect(() => { fetchPage(0, true); }, [familyId, tipo]);
 
   const nameOf = (id?: string | null) => profiles.find((p) => p.id === id)?.name ?? "Sistema";
 
@@ -79,8 +95,7 @@ function Historial() {
   const filtered = useMemo(
     () =>
       log.filter((e) => {
-        if (tipo !== "todos" && e.entity !== tipo) return false;
-        if (!q.trim()) return true;
+                if (!q.trim()) return true;
         const t = q.toLowerCase();
         return (
           (ENTIDADES[e.entity] ?? e.entity).toLowerCase().includes(t) ||
@@ -95,7 +110,7 @@ function Historial() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Historial</h1>
-        <p className="text-sm text-muted-foreground">Todos los movimientos de la familia ({log.length} registros).</p>
+        <p className="text-sm text-muted-foreground">Todos los movimientos de la familia ({count} registros).</p>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -140,6 +155,16 @@ function Historial() {
             </ul>
           </CardContent>
         </Card>
+      )}
+      {log.length > 0 && (
+        <div className="flex flex-col items-center gap-2 py-2 text-xs text-muted-foreground">
+          <span>Cargados {log.length} de {count}</span>
+          {log.length < count && (
+            <Button variant="outline" size="sm" disabled={loading} onClick={() => fetchPage(log.length, false)}>
+              {loading ? "Cargando…" : "Cargar más"}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
