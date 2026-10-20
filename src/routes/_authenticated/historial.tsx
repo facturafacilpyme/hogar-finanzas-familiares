@@ -40,24 +40,39 @@ const ACCIONES: Record<string, string> = {
   delete: "eliminó",
 };
 
+const PAGE = 30;
+
 function Historial() {
   const { familyId } = useAuth();
   const [log, setLog] = useState<any[]>([]);
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [tipo, setTipo] = useState("todos");
 
   useEffect(() => {
-    (async () => {
-      if (!familyId) return;
-      const [{ data: l }, { data: p }] = await Promise.all([
-        supabase.from("activity_log").select("*").eq("family_id", familyId).order("created_at", { ascending: false }).limit(500),
-        supabase.from("profiles").select("id, name"),
-      ]);
-      setLog(l ?? []);
-      setProfiles(p ?? []);
-    })();
-  }, [familyId]);
+    supabase.from("profiles").select("id, name").then(({ data }) => setProfiles(data ?? []));
+  }, []);
+
+  // Paginación real en el servidor: solo se descarga la página pedida.
+  async function fetchPage(from: number, reset: boolean) {
+    if (!familyId) return;
+    setLoading(true);
+    let query = supabase
+      .from("activity_log")
+      .select("*", { count: "exact" })
+      .eq("family_id", familyId)
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (tipo !== "todos") query = query.eq("entity", tipo);
+    const { data, count: c } = await query;
+    setLog((prev) => (reset ? data ?? [] : [...prev, ...(data ?? [])]));
+    setCount(c ?? 0);
+    setLoading(false);
+  }
+
+  useEffect(() => { fetchPage(0, true); }, [familyId, tipo]);
 
   const nameOf = (id?: string | null) => profiles.find((p) => p.id === id)?.name ?? "Sistema";
 
