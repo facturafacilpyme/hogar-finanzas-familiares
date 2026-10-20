@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCOP, formatDate } from "@/lib/currency";
+import { Button } from "@/components/ui/button";
 import { ProofLink } from "@/components/ProofLink";
 import { History, Search } from "lucide-react";
 
@@ -94,8 +95,7 @@ function Historial() {
   const filtered = useMemo(
     () =>
       log.filter((e) => {
-        if (tipo !== "todos" && e.entity !== tipo) return false;
-        if (!q.trim()) return true;
+                if (!q.trim()) return true;
         const t = q.toLowerCase();
         return (
           (ENTIDADES[e.entity] ?? e.entity).toLowerCase().includes(t) ||
@@ -110,7 +110,7 @@ function Historial() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Historial</h1>
-        <p className="text-sm text-muted-foreground">Todos los movimientos de la familia ({log.length} registros).</p>
+        <p className="text-sm text-muted-foreground">Todos los movimientos de la familia ({count} registros).</p>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -155,6 +155,16 @@ function Historial() {
             </ul>
           </CardContent>
         </Card>
+      )}
+      {log.length > 0 && (
+        <div className="flex flex-col items-center gap-2 py-2 text-xs text-muted-foreground">
+          <span>Cargados {log.length} de {count}</span>
+          {log.length < count && (
+            <Button variant="outline" size="sm" disabled={loading} onClick={() => fetchPage(log.length, false)}>
+              {loading ? "Cargando…" : "Cargar más"}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
