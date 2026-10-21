@@ -9,6 +9,8 @@ import { formatCOP, formatDate } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { ProofLink } from "@/components/ProofLink";
 import { History, Search } from "lucide-react";
+import { useWebMCP } from "use-webmcp-tool";
+import { runWebMCPTool } from "@/lib/webmcp-telemetry";
 
 export const Route = createFileRoute("/_authenticated/historial")({
   head: () => ({
@@ -106,6 +108,44 @@ function Historial() {
     [log, tipo, q, profiles],
   );
 
+  function changeTipo(next: unknown) {
+    if (typeof next !== "string" || (next !== "todos" && !(next in ENTIDADES))) {
+      throw new Error(`Tipo desconocido; usa: todos, ${Object.keys(ENTIDADES).join(", ")}.`);
+    }
+    setTipo(next);
+  }
+
+  useWebMCP({
+    name: "list_activity",
+    description: "Lista los movimientos del historial que se ven ahora en pantalla (respeta el filtro y la búsqueda).",
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    execute: () =>
+      runWebMCPTool("list_activity", () =>
+        filtered.length === 0
+          ? (loading ? "Cargando historial…" : "Sin movimientos en la vista actual.")
+          : filtered.slice(0, 50).map((e) =>
+              `${formatDate(e.created_at)} · ${nameOf(e.user_id)} ${ACCIONES[e.action] ?? e.action} ${ENTIDADES[e.entity] ?? e.entity}${describe(e) ? " · " + describe(e) : ""}`,
+            ).join("\n"),
+      ),
+  });
+
+  useWebMCP({
+    name: "filter_activity",
+    description: "Cambia el tipo de movimiento que muestra el historial.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tipo: { type: "string", enum: ["todos", ...Object.keys(ENTIDADES)], description: "Tipo de movimiento a mostrar." },
+      },
+      required: ["tipo"],
+    },
+    execute: ({ tipo: t }: { tipo: string }) =>
+      runWebMCPTool("filter_activity", () => {
+        changeTipo(t);
+        return `Mostrando: ${t === "todos" ? "todos los tipos" : ENTIDADES[t]}.`;
+      }),
+  });
+
   return (
     <div className="space-y-4">
       <div>
@@ -118,7 +158,7 @@ function Historial() {
           <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-8" placeholder="Buscar en el historial…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <Select value={tipo} onValueChange={setTipo}>
+        <Select value={tipo} onValueChange={changeTipo}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los tipos</SelectItem>
