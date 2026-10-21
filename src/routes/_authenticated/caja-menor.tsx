@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Receipt, Pencil, Trash2, PiggyBank, AlertTriangle, Tags, EyeOff, Eye } from "lucide-react";
+import { Plus, Receipt, Pencil, Trash2, PiggyBank, AlertTriangle, Tags, EyeOff, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP, formatDate } from "@/lib/currency";
+import { expenseMonthKey, expensesForMonth, isExpenseHistory, shiftExpenseMonth } from "@/lib/expense-history";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
@@ -24,6 +25,8 @@ export const Route = createFileRoute("/_authenticated/caja-menor")({
       { name: "description", content: "Gastos, presupuestos por categoría y alertas de consumo del hogar." },
       { property: "og:title", content: "Caja Menor — HogarFin" },
       { property: "og:description", content: "Gastos, presupuestos por categoría y alertas de consumo del hogar." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CajaMenor,
@@ -60,7 +63,21 @@ function CajaMenor() {
   const [cats, setCats] = useState<Categoria[]>([]);
   const [filter, setFilter] = useState<string>("todos");
   const [editing, setEditing] = useState<any>(null);
+  const [month, setMonth] = useState(() => expenseMonthKey(new Date()));
   const confirmar = useConfirm();
+  const currentMonth = expenseMonthKey(new Date());
+  const historical = isExpenseHistory(month);
+  const monthLabel = new Intl.DateTimeFormat("es-CO", { month: "long", year: "numeric" })
+    .format(new Date(`${month}-01T12:00:00`));
+
+  function selectMonth(value: string) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value) || value > currentMonth) return;
+    setMonth(value);
+    setOpenNew(false);
+    setOpenBudget(false);
+    setOpenCats(false);
+    setEditing(null);
+  }
 
   const load = useCallback(async () => {
     if (!familyId) return;
@@ -79,18 +96,16 @@ function CajaMenor() {
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(familyId, load);
 
-  const filtered = expenses.filter((x) => filter === "todos" || x.category === filter);
+  const monthExpenses = useMemo(() => expensesForMonth(expenses, month), [expenses, month]);
+  const filtered = monthExpenses.filter((x) => filter === "todos" || x.category === filter);
 
   const gastoMesPorCat = useMemo(() => {
-    const now = new Date();
     const m = new Map<string, number>();
-    expenses.forEach((x) => {
-      const d = new Date(x.expense_date);
-      if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return;
+    monthExpenses.forEach((x) => {
       m.set(x.category, (m.get(x.category) ?? 0) + Number(x.amount));
     });
     return m;
-  }, [expenses]);
+  }, [monthExpenses]);
 
   const totalMes = useMemo(() => [...gastoMesPorCat.values()].reduce((s, v) => s + v, 0), [gastoMesPorCat]);
   const limiteOf = (cat: string) => Number(budgets.find((b) => b.category === cat)?.monthly_limit ?? 0);
@@ -107,8 +122,10 @@ function CajaMenor() {
 
   const canWrite = canWriteFinance(role);
   const isAdmin = isAdminRole(role);
+  const canEditMonth = canWrite && !historical;
 
   async function removeExpense(id: string) {
+    if (historical) return;
     const ok = await confirmar({
       title: "Eliminar gasto",
       description: "El gasto se quitará de la caja menor. Esta acción no se puede deshacer.",
@@ -130,20 +147,35 @@ function CajaMenor() {
           <p className="text-sm text-muted-foreground">Gastos cotidianos y presupuestos del hogar.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canWrite && (
+          {canEditMonth && (
             <Button variant="outline" onClick={() => setOpenCats(true)}>
               <Tags className="mr-1 h-4 w-4" /> Categorías
             </Button>
           )}
-          {isAdmin && (
+          {isAdmin && !historical && (
             <Button variant="outline" onClick={() => setOpenBudget(true)}>
               <PiggyBank className="mr-1 h-4 w-4" /> Presupuestos
             </Button>
           )}
-          {canWrite && (
+          {canEditMonth && (
             <Button onClick={() => setOpenNew(true)}><Plus className="mr-1 h-4 w-4" /> Nuevo gasto</Button>
           )}
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-b pb-4">
+        <Button variant="outline" size="icon" aria-label="Mes anterior" title="Mes anterior" onClick={() => selectMonth(shiftExpenseMonth(month, -1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="min-w-0">
+          <Label htmlFor="expense-history-month" className="sr-only">Mes de gastos</Label>
+          <Input id="expense-history-month" type="month" aria-label="Mes de gastos" value={month} max={currentMonth} onChange={(e) => selectMonth(e.target.value)} className="w-44" />
+        </div>
+        <Button variant="outline" size="icon" aria-label="Mes siguiente" title="Mes siguiente" disabled={month >= currentMonth} onClick={() => selectMonth(shiftExpenseMonth(month, 1))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        {historical && <Button variant="ghost" size="sm" onClick={() => selectMonth(currentMonth)}>Mes actual</Button>}
+        {historical && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Eye className="h-4 w-4" /> Histórico · Solo lectura</span>}
       </div>
 
       {!canWrite && (
@@ -156,16 +188,16 @@ function CajaMenor() {
         <Card>
           <CardContent className="flex items-center justify-between p-5">
             <div className="min-w-0">
-              <div className="text-xs uppercase text-muted-foreground">Total este mes</div>
+              <div className="text-xs uppercase text-muted-foreground">Total · {monthLabel}</div>
               <div className="break-words text-2xl font-bold leading-tight">{formatCOP(totalMes)}</div>
-              {totalLimite > 0 && (
+              {!historical && totalLimite > 0 && (
                 <div className="text-[11px] text-muted-foreground">Presupuesto total: {formatCOP(totalLimite)}</div>
               )}
             </div>
             <Receipt className="h-8 w-8 shrink-0 text-primary" />
           </CardContent>
         </Card>
-        {enAlerta.length > 0 && (
+        {!historical && enAlerta.length > 0 && (
           <Card className="border-destructive/40 bg-destructive/5 sm:col-span-1 lg:col-span-2">
             <CardContent className="flex items-start gap-3 p-5 text-sm">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
@@ -180,7 +212,17 @@ function CajaMenor() {
         )}
       </div>
 
-      <Card>
+      {historical ? (
+        <section className="space-y-3 border-b pb-4" aria-label="Gastos por categoría">
+          <h2 className="text-base font-semibold">Gastos por categoría · {monthLabel}</h2>
+          {[...gastoMesPorCat.entries()].map(([category, amount]) => (
+            <div key={category} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span>{nameOf(category)}</span>
+              <span className="font-medium">{formatCOP(amount)}</span>
+            </div>
+          ))}
+        </section>
+      ) : <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Consumo del presupuesto mensual</CardTitle>
         </CardHeader>
@@ -218,40 +260,40 @@ function CajaMenor() {
             })
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Dialog open={openNew} onOpenChange={setOpenNew}>
+      {canEditMonth && user && familyId && <Dialog open={openNew} onOpenChange={setOpenNew}>
         <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
           <DialogHeader><DialogTitle>Registrar gasto</DialogTitle></DialogHeader>
           <ExpenseForm
-            userId={user!.id}
-            familyId={familyId!}
+            userId={user.id}
+            familyId={familyId}
             cats={activeCats}
             onDone={() => { setOpenNew(false); load(); }}
           />
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
-      <Dialog open={openBudget} onOpenChange={setOpenBudget}>
+      {isAdmin && !historical && familyId && <Dialog open={openBudget} onOpenChange={setOpenBudget}>
         <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
           <DialogHeader><DialogTitle>Presupuesto mensual por categoría</DialogTitle></DialogHeader>
           <BudgetForm
-            familyId={familyId!}
+            familyId={familyId}
             budgets={budgets}
             cats={activeCats}
             onDone={() => { setOpenBudget(false); load(); }}
           />
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
-      <Dialog open={openCats} onOpenChange={setOpenCats}>
+      {canEditMonth && familyId && <Dialog open={openCats} onOpenChange={setOpenCats}>
         <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
           <DialogHeader><DialogTitle>Categorías de gasto</DialogTitle></DialogHeader>
-          <CategoriesManager familyId={familyId!} cats={cats} expenses={expenses} budgets={budgets} onChange={load} />
+          <CategoriesManager familyId={familyId} cats={cats} expenses={expenses} budgets={budgets} onChange={load} />
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
-      {editing && (
+      {editing && isAdmin && !historical && (
         <Dialog open onOpenChange={(o) => !o && setEditing(null)}>
           <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
             <DialogHeader><DialogTitle>Editar gasto</DialogTitle></DialogHeader>
@@ -298,7 +340,7 @@ function CajaMenor() {
 
       <div className="flex justify-end">
         <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44" aria-label="Filtrar por categoría"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas</SelectItem>
             {cats.map((c) => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
@@ -307,7 +349,7 @@ function CajaMenor() {
       </div>
 
       {filtered.length === 0 ? (
-        <Card><CardContent className="p-10 text-center text-muted-foreground">Sin gastos.</CardContent></Card>
+        <Card><CardContent className="p-10 text-center text-muted-foreground">Sin gastos{filter !== "todos" ? ` de ${nameOf(filter)}` : ""} en {monthLabel}.</CardContent></Card>
       ) : (
         <Card>
           <CardContent className="p-0">
@@ -324,12 +366,12 @@ function CajaMenor() {
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <span className="font-bold">{formatCOP(x.amount)}</span>
-                      {isAdmin && (
+                      {isAdmin && !historical && (
                         <>
-                          <Button size="sm" variant="ghost" onClick={() => setEditing(x)}>
+                          <Button size="sm" variant="ghost" aria-label="Editar gasto" onClick={() => setEditing(x)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => removeExpense(x.id)}>
+                          <Button size="sm" variant="ghost" aria-label="Eliminar gasto" onClick={() => removeExpense(x.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </>
