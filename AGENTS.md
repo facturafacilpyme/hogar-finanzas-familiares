@@ -8,3 +8,4 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- External AI agents connect via the app-hosted MCP server in `src/lib/mcp/` (OAuth through Cloud Auth, caller-scoped client so RLS applies); tools are read-only and resolve the caller's family themselves — never accept user ids from tool input.

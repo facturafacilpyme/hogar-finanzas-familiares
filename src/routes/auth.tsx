@@ -8,8 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>): { next?: string } =>
+    typeof s.next === "string" ? { next: s.next } : {},
   head: () => ({ meta: [{ title: "Entrar — HogarFin" }, { name: "description", content: "Ingresa a HogarFin." }] }),
   component: Auth,
 });
@@ -17,6 +20,9 @@ export const Route = createFileRoute("/auth")({
 function Auth() {
   const nav = useNavigate();
   const { user } = useAuth();
+  const { next: rawNext } = Route.useSearch();
+  const next = rawNext ? oauthReturnPath(rawNext) : null;
+  const goNext = () => { if (next && next !== "/") window.location.assign(next); else nav({ to: "/panel" }); };
   const [loading, setLoading] = useState(false);
   const [forgot, setForgot] = useState(false);
 
@@ -24,13 +30,15 @@ function Auth() {
     if (!user) return;
     let pending: string | null = null;
     try { pending = sessionStorage.getItem("pending_invite_token"); } catch {}
-    if (pending) {
+    if (next && next !== "/") {
+      window.location.assign(next);
+    } else if (pending) {
       sessionStorage.removeItem("pending_invite_token");
       nav({ to: "/invitacion/$token", params: { token: pending } });
     } else {
       nav({ to: "/panel" });
     }
-  }, [user, nav]);
+  }, [user, nav, next]);
 
   async function signIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,7 +52,7 @@ function Auth() {
     if (error) toast.error(error.message);
     else {
       toast.success("¡Bienvenido!");
-      nav({ to: "/panel" });
+      goNext();
     }
   }
 
@@ -57,14 +65,14 @@ function Auth() {
       password: String(fd.get("password")),
       options: {
         data: { name: String(fd.get("name")) },
-        emailRedirectTo: `${window.location.origin}/panel`,
+        emailRedirectTo: next && next !== "/" ? new URL(next, window.location.origin).href : `${window.location.origin}/panel`,
       },
     });
     setLoading(false);
     if (error) toast.error(error.message);
     else {
       toast.success("Cuenta creada. ¡Bienvenido!");
-      nav({ to: "/panel" });
+      goNext();
     }
   }
 
