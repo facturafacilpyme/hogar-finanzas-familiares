@@ -27,6 +27,7 @@ import {
   LogOut,
   HandCoins,
   UserCog,
+  MessageSquareHeart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -94,6 +95,7 @@ function AuthedLayout() {
   const allItems = [
     ...(educativo ? items.filter((i) => !EDU_BLOCKED.includes(i.to)) : items),
     { title: "Mi familia", to: "/miembros", icon: Users },
+    { title: "Comunidad", to: "/comunidad", icon: MessageSquareHeart },
     { title: "Mi cuenta", to: "/cuenta", icon: UserCog },
   ];
 
