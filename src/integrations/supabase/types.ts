@@ -135,6 +135,77 @@ export type Database = {
           },
         ]
       }
+      community_feedback: {
+        Row: {
+          alias: string
+          body: string
+          category: string
+          created_at: string
+          id: string
+          moderation_model: string | null
+          moderation_reason: string | null
+          published: boolean
+          status: string
+          title: string
+          user_id: string
+          votes_count: number
+        }
+        Insert: {
+          alias: string
+          body: string
+          category: string
+          created_at?: string
+          id?: string
+          moderation_model?: string | null
+          moderation_reason?: string | null
+          published?: boolean
+          status?: string
+          title: string
+          user_id: string
+          votes_count?: number
+        }
+        Update: {
+          alias?: string
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          moderation_model?: string | null
+          moderation_reason?: string | null
+          published?: boolean
+          status?: string
+          title?: string
+          user_id?: string
+          votes_count?: number
+        }
+        Relationships: []
+      }
+      community_votes: {
+        Row: {
+          created_at: string
+          feedback_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_votes_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "community_feedback"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       debt_members: {
         Row: {
           amount_assigned: number
