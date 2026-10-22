@@ -1,5 +1,21 @@
 # HogarFin — Organizador Familiar de Finanzas
 
+> **Vitrina pública del proyecto.** HogarFin es gratuito y no tiene planes de pago.
+> Este repositorio se publica para mostrar el producto; no se aceptan contribuciones de código externas.
+>
+> - Usar la app: https://hogar-fin.lovable.app
+> - Opinar, sugerir mejoras o votar ideas: https://hogar-fin.lovable.app/comunidad
+>
+> En **Comunidad** cualquier persona registrada publica sugerencias, experiencias, ideas o reportes de error.
+> Cada opinión se revisa automáticamente con inteligencia artificial (respeto, sin datos personales ni
+> montos financieros) antes de publicarse; las demás personas votan “me interesa” para priorizar mejoras.
+
+### Cómo empezar (usuarios)
+1. Entra a la app y crea tu cuenta con correo y contraseña: se crea tu familia y quedas como administrador.
+2. Invita a tu familia desde **Mi familia** (roles: Miembro, Invitado de solo lectura, Educativo).
+3. Registra deudas, abonos, gastos de Caja Menor y metas de ahorro.
+4. Instálala en el celular desde el navegador: menú → “Agregar a pantalla de inicio”.
+
 Aplicación web (PWA) mobile-first en español para que **varias familias** controlen sus deudas,
 abonos, gastos y metas de ahorro de forma aislada entre sí.
 
@@ -179,3 +195,9 @@ npm run dev
 ```
 
 Continúa en el [editor de Lovable](https://lovable.dev/projects/813cb785-e00e-4a30-8f7a-2220bebe4302).
+
+
+## Comunidad (feedback público)
+- Tablas globales (no por familia): `community_feedback` (solo filas `published` son legibles por todos; el autor ve y borra las suyas) y `community_votes` (un voto por usuario; `votes_count` se sincroniza por trigger).
+- La publicación pasa por la server function `enviarOpinion` (`src/lib/community.functions.ts`): moderación con IA y luego inserción privilegiada; los clientes no pueden insertar directo. Límite 5 opiniones por usuario cada 24 h.
+- Página pública `/comunidad`, enlazada en el menú y en el pie de la página de inicio.

@@ -10,3 +10,5 @@
 <!-- LOVABLE:END -->
 - External AI agents connect via the app-hosted MCP server in `src/lib/mcp/` (OAuth through Cloud Auth, caller-scoped client so RLS applies); tools are read-only and resolve the caller's family themselves — never accept user ids from tool input.
 - Caja Menor month selection uses date-only month keys in `src/lib/expense-history.ts`; historical views hide write controls and show actual category spending instead of applying today's mutable budgets retroactively.
+
+- Community feedback rows are inserted only by the `enviarOpinion` server function after AI moderation (no client INSERT grant) so moderation cannot be bypassed.
