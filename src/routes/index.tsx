@@ -210,7 +210,8 @@ function Landing() {
 
       <footer className="border-t bg-card">
         <div className="mx-auto max-w-6xl px-5 py-6 text-sm text-muted-foreground">
-          © {new Date().getFullYear()} HogarFin. Finanzas familiares sanas.
+          © {new Date().getFullYear()} HogarFin. Finanzas familiares sanas. ·{" "}
+          <Link to="/comunidad" className="underline hover:text-foreground">Comunidad y opiniones</Link>
         </div>
       </footer>
     </div>
