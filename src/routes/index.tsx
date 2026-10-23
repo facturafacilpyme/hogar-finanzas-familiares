@@ -17,8 +17,85 @@ import {
   WifiOff,
   Smartphone,
   MessageCircle,
+  Tags,
+  Scale,
+  TrendingDown,
+  ThumbsUp,
+  MessagesSquare,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+
+const CATEGORY_LABEL: Record<string, string> = {
+  sugerencia: "Sugerencia",
+  experiencia: "Experiencia",
+  idea: "Idea",
+  error: "Reporte de error",
+};
+
+function CommunityShowcase() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["landing-community"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("community_feedback")
+        .select("id,alias,category,title,body,votes_count,created_at")
+        .eq("published", true)
+        .order("votes_count", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return (
+    <section className="mt-16">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-primary">
+            <MessagesSquare className="h-5 w-5" />
+            <span className="text-sm font-semibold">Comunidad</span>
+          </div>
+          <h2 className="mt-1 text-2xl font-bold md:text-3xl">Lo que dicen las familias</h2>
+          <p className="mt-2 text-muted-foreground">
+            Opiniones reales, revisadas automáticamente para que sean respetuosas y sin datos privados.
+          </p>
+        </div>
+        <Link to="/comunidad">
+          <Button variant="outline">Ver todas y opinar</Button>
+        </Link>
+      </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {isLoading &&
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-40 animate-pulse rounded-2xl border bg-muted" />
+          ))}
+        {!isLoading && (data?.length ?? 0) === 0 && (
+          <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
+            Aún no hay opiniones publicadas. ¡Sé la primera persona en compartir la tuya!
+          </div>
+        )}
+        {data?.map((f) => (
+          <article key={f.id} className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm">
+            <span className="w-fit rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-foreground">
+              {CATEGORY_LABEL[f.category as string] ?? f.category}
+            </span>
+            <h3 className="mt-3 font-semibold break-words">{f.title}</h3>
+            <p className="mt-1 line-clamp-4 text-sm text-muted-foreground break-words">{f.body}</p>
+            <div className="mt-auto flex items-center justify-between pt-4 text-xs text-muted-foreground">
+              <span className="truncate">{f.alias}</span>
+              <span className="flex items-center gap-1">
+                <ThumbsUp className="h-3.5 w-3.5" /> {f.votes_count}
+              </span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -149,6 +226,21 @@ function Landing() {
                 t: "Funciona con mala señal",
                 d: "Los registros se guardan en una cola local y se sincronizan solos cuando vuelve la conexión.",
               },
+              {
+                i: Tags,
+                t: "Categorías a tu medida",
+                d: "Crea, renombra o archiva las categorías de Caja Menor según cómo maneja el dinero tu familia, y revisa meses anteriores en modo solo lectura.",
+              },
+              {
+                i: Scale,
+                t: "Reparto por ingresos",
+                d: "Calcula el porcentaje de cada persona en una deuda según los ingresos mensuales declarados.",
+              },
+              {
+                i: TrendingDown,
+                t: "Estrategia para salir de deudas",
+                d: "Compara Bola de Nieve y Avalancha: orden sugerido de pago e intereses estimados que te ahorras.",
+              },
             ].map(({ i: Icon, t, d }) => (
               <div key={t} className="rounded-2xl border bg-card p-5 shadow-sm">
                 <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -183,6 +275,8 @@ function Landing() {
             ))}
           </div>
         </section>
+
+        <CommunityShowcase />
 
         <section className="mt-16 rounded-3xl border bg-card p-6 shadow-sm md:p-10">
           <div className="grid gap-6 md:grid-cols-2 md:items-center">
