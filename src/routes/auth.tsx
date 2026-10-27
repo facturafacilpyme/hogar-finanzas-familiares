@@ -11,8 +11,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>): { next?: string } =>
-    typeof s.next === "string" ? { next: s.next } : {},
+  validateSearch: (s: Record<string, unknown>): { next?: string; tab?: "signin" | "signup" } => ({
+    ...(typeof s.next === "string" ? { next: s.next } : {}),
+    ...(s.tab === "signup" || s.tab === "signin" ? { tab: s.tab } : {}),
+  }),
   head: () => ({ meta: [{ title: "Entrar — HogarFin" }, { name: "description", content: "Ingresa a HogarFin." }] }),
   component: Auth,
 });
@@ -20,7 +22,7 @@ export const Route = createFileRoute("/auth")({
 function Auth() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const { next: rawNext } = Route.useSearch();
+  const { next: rawNext, tab } = Route.useSearch();
   const next = rawNext ? oauthReturnPath(rawNext) : null;
   const goNext = () => { if (next && next !== "/") window.location.assign(next); else nav({ to: "/panel" }); };
   const [loading, setLoading] = useState(false);
@@ -118,7 +120,7 @@ function Auth() {
                 </Button>
               </form>
             ) : (
-            <Tabs defaultValue="signin">
+            <Tabs key={tab ?? "signin"} defaultValue={tab ?? "signin"}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Entrar</TabsTrigger>
                 <TabsTrigger value="signup">Registrarme</TabsTrigger>
