@@ -145,7 +145,7 @@ function Landing() {
               controla la caja menor con presupuestos y recibe alertas antes de caer en mora.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/auth">
+              <Link to="/auth" search={{ tab: "signup" }}>
                 <Button size="lg">Crear mi hogar</Button>
               </Link>
               <Link to="/auth">
@@ -294,7 +294,7 @@ function Landing() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3 md:justify-end">
-              <Link to="/auth">
+              <Link to="/auth" search={{ tab: "signup" }}>
                 <Button size="lg">Empezar gratis</Button>
               </Link>
             </div>
