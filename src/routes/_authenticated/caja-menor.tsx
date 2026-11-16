@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Receipt, Pencil, Trash2, PiggyBank, AlertTriangle, Tags, EyeOff, Eye, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCOP, formatDate } from "@/lib/currency";
+import { formatCOP, formatDate, localISODate } from "@/lib/currency";
 import { expenseMonthKey, expensesForMonth, isExpenseHistory, shiftExpenseMonth } from "@/lib/expense-history";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -391,7 +391,7 @@ function CajaMenor() {
 function ExpenseForm({ userId, familyId, cats, onDone }: { userId: string; familyId: string; cats: Categoria[]; onDone: () => void }) {
   const [cat, setCat] = useState<string>(cats[0]?.slug ?? "otros");
   const [amount, setAmount] = useState("");
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(localISODate());
   const [desc, setDesc] = useState("");
   const [loading, setLoading] = useState(false);
 

@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, PiggyBank, Trophy, Unlock, Search, Upload, Pencil, Trash2, Medal, Shield, Flag } from "lucide-react";
-import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
+import { formatCOP, formatDate, daysUntil, localISODate } from "@/lib/currency";
 import { uploadProof } from "@/lib/storage";
 import { ProofLink } from "@/components/ProofLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -200,7 +200,7 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
 
   const esReto = !!g.is_challenge;
   const esReserva = g.goal_kind === "reserva";
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = localISODate();
   // lazy fallback: un reto vencido se muestra cerrado aunque el job no haya corrido
   const cerrado = esReto && (!!g.closed_at || (!!g.period_end && g.period_end < hoy));
 
@@ -245,7 +245,7 @@ function GoalCard({ goal: g, members, contribs, profiles, nameOf, canWrite, isAd
         created_by: userId,
         amount: current,
         kind: "retiro",
-        contribution_date: new Date().toISOString().slice(0, 10),
+        contribution_date: localISODate(),
         notes: "Meta rota: retiro total",
       });
       if (error) { setBreaking(false); return toast.error(error.message); }
@@ -626,7 +626,7 @@ function ContribForm({ goal, people, userId, onDone }: any) {
           </SelectContent>
         </Select>
       </div>
-      <div><Label>Fecha</Label><Input name="contribution_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></div>
+      <div><Label>Fecha</Label><Input name="contribution_date" type="date" defaultValue={localISODate()} required /></div>
       <div><Label>Nota (opcional)</Label><Input name="notes" placeholder="Detalle del aporte" /></div>
       <div>
         <Label className="flex items-center gap-2"><Upload className="h-4 w-4" /> Comprobante (opcional)</Label>
@@ -683,8 +683,8 @@ function GoalForm({ goal, existingMembers = [], profiles, userId, familyId, onDo
     onDone();
   }
 
-  const hoy = new Date().toISOString().slice(0, 10);
-  const enUnaSemana = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+  const hoy = localISODate();
+  const enUnaSemana = localISODate(new Date(Date.now() + 6 * 86400000));
 
   return (
     <form onSubmit={submit} className="space-y-3">

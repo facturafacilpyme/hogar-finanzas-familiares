@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, ShieldAlert } from "lucide-react";
-import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
+import { formatCOP, formatDate, daysUntil, parseAppDate } from "@/lib/currency";
 import { memberBreakdown, sum } from "@/lib/debts";
 import { nivelRiesgo, RIESGO_META } from "@/lib/strategy";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -89,7 +89,7 @@ function Calendario() {
     const map = new Map<number, any[]>();
     const push = (day: number, item: any) => map.set(day, [...(map.get(day) ?? []), item]);
     const inMonth = (raw: string) => {
-      const date = new Date(raw);
+      const date = parseAppDate(raw);
       return date.getFullYear() === y && date.getMonth() === m ? date.getDate() : null;
     };
 

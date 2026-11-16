@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Wallet, Upload, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCOP, formatDate } from "@/lib/currency";
+import { formatCOP, formatDate, localISODate } from "@/lib/currency";
 import { debtStatus, memberBreakdown, STATUS_META, sum } from "@/lib/debts";
 import { uploadProof } from "@/lib/storage";
 import { ProofLink } from "@/components/ProofLink";
@@ -479,7 +479,7 @@ function SettlementProofForm({ debt, userId, familyId, profiles, enMora, onDone 
             description: `Pago de intereses por mora de la deuda "${debt.name}"${debt.entity ? ` (${debt.entity})` : ""} — responsable del pago: ${
               profiles?.find((p: any) => p.id === responsable)?.name ?? "miembro"
             }`,
-            expense_date: new Date().toISOString().slice(0, 10),
+            expense_date: localISODate(),
             paid_by: responsable,
             family_id: familyId,
           },
@@ -640,7 +640,7 @@ function DebtForm({ debt, existingMembers = [], profiles, onDone, userId, family
       await supabase.from("debt_members").delete().eq("debt_id", debt.id);
     } else if (type === "cuotas" && totalCuotas && totalCuotas > 1) {
       // Una deuda por cada cuota, el mismo día de cada mes a partir del vencimiento.
-      const primera = payload.due_date ?? new Date().toISOString().slice(0, 10);
+      const primera = payload.due_date ?? localISODate();
       const valorCuota = totalN / totalCuotas;
       const asignaciones = Object.entries(assign).filter(([, v]) => Number(v) > 0);
       for (let i = 0; i < totalCuotas; i++) {
@@ -813,7 +813,7 @@ function PaymentForm({ debt, profiles, breakdown, remaining, userId, familyId, o
   const [file, setFile] = useState<File | null>(null);
   const [target, setTarget] = useState<string>(userId);
   const [amount, setAmount] = useState<string>("");
-  const [fecha, setFecha] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState<string>(localISODate());
 
   const saldaDeuda = Number(amount || 0) >= remaining - 0.5 && Number(amount || 0) > 0;
   const responsable = breakdown.find((m: any) => m.user_id === target);

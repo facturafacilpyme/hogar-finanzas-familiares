@@ -1,3 +1,4 @@
+import { parseAppDate } from "@/lib/currency";
 export interface DebtLike { id: string; total_amount: number | string; due_date?: string | null }
 
 export type DebtStatus = "pagada" | "mora" | "por_vencer" | "activa";
@@ -16,7 +17,7 @@ export function sum(rows: any[], field = "amount") {
 /** Días restantes hasta la fecha (null si no hay fecha). */
 function days(due?: string | null): number | null {
   if (!due) return null;
-  const t = new Date(due);
+  const t = parseAppDate(due);
   t.setHours(0, 0, 0, 0);
   const today = new Date();
   today.setHours(0, 0, 0, 0);

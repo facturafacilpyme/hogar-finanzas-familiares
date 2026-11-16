@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { HandCoins, Search, Pencil, Trash2 } from "lucide-react";
-import { formatCOP, formatDate } from "@/lib/currency";
+import { formatCOP, formatDate, localISODate } from "@/lib/currency";
 import { ProofLink } from "@/components/ProofLink";
 import { OcrScan } from "@/components/OcrScan";
 import { uploadProof } from "@/lib/storage";
@@ -239,7 +239,7 @@ function EditPaymentForm({ payment, profiles, userId, onDone }: any) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<string>(String(payment.amount ?? ""));
-  const [fecha, setFecha] = useState<string>(payment.payment_date ?? new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState<string>(payment.payment_date ?? localISODate());
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet, PiggyBank, TrendingUp, AlertCircle, Receipt, HandCoins, Target, Users, AlertTriangle, CalendarRange, Share2, ShieldAlert } from "lucide-react";
-import { formatCOP, formatDate, daysUntil } from "@/lib/currency";
+import { formatCOP, formatDate, daysUntil, parseAppDate } from "@/lib/currency";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -58,7 +58,7 @@ function Panel() {
         : { data: [] as any[] };
       const now = new Date();
       const mes = (d?: string | null) =>
-        !!d && new Date(d).getMonth() === now.getMonth() && new Date(d).getFullYear() === now.getFullYear();
+        !!d && parseAppDate(d).getMonth() === now.getMonth() && parseAppDate(d).getFullYear() === now.getFullYear();
 
       const totalDebt = (debts ?? []).reduce((s, d: any) => s + Number(d.total_amount), 0);
       const totalPaid = (pays ?? []).reduce((s, p: any) => s + Number(p.amount), 0);
@@ -134,7 +134,7 @@ function Panel() {
       const { desde, hasta } = rangoSemana();
       const enSemana = (v?: string | null) => {
         if (!v) return false;
-        const t = new Date(v).getTime();
+        const t = parseAppDate(v).getTime();
         return t >= desde.getTime() && t <= hasta.getTime();
       };
       setSemana({
